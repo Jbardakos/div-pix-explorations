@@ -1,0 +1,136 @@
+
+<canvas id="c" style="display:block;width:min(500px,82vw);aspect-ratio:1;margin:2rem auto;"></canvas>
+<script>
+(function(){
+const COLS=20,ROWS=20,SZ=400;
+const cv=document.getElementById('c');
+cv.width=SZ;cv.height=SZ;
+const ctx=cv.getContext('2d');
+const imgData=ctx.createImageData(SZ,SZ);
+
+function s3(t){return t*t*(3-2*t);}
+function lrp(a,b,t){return a+t*(b-a);}
+const R=256,RM=R-1;
+const V=new Float32Array(R*R);
+for(let i=0;i<V.length;i++)V[i]=Math.random()*2-1;
+function vn(x,y){
+  const xi=((Math.floor(x)%R)+R)&RM,yi=((Math.floor(y)%R)+R)&RM;
+  const xf=x-Math.floor(x),yf=y-Math.floor(y);
+  const u=s3(xf),vv=s3(yf);
+  const xi1=(xi+1)&RM,yi1=(yi+1)&RM;
+  return lrp(lrp(V[yi*R+xi],V[yi*R+xi1],u),lrp(V[yi1*R+xi],V[yi1*R+xi1],u),vv);
+}
+function fbm(x,y){return vn(x,y)*.5+vn(x*2.1,y*2.1)*.25+vn(x*4.3,y*4.3)*.125+vn(x*8.7,y*8.7)*.0625;}
+
+const cW=Array.from({length:COLS},()=>({base:1,w:[{ph:Math.random()*Math.PI*2,fr:.00007+Math.random()*.0012,am:.15+Math.random()*.45},{ph:Math.random()*Math.PI*2,fr:.00004+Math.random()*.0006,am:.1+Math.random()*.25}]}));
+const rW=Array.from({length:ROWS},()=>({base:1,w:[{ph:Math.random()*Math.PI*2,fr:.00007+Math.random()*.0012,am:.15+Math.random()*.45},{ph:Math.random()*Math.PI*2,fr:.00004+Math.random()*.0006,am:.1+Math.random()*.25}]}));
+const DX=.000055,DY=.000042,sc=3.5;
+const VEL_MULT=7;
+const STRIP=22;
+const PERSIST=0.80;
+
+let bufA=new Uint8ClampedArray(SZ*SZ*4);
+let bufB=new Uint8ClampedArray(SZ*SZ*4);
+for(let i=0;i<bufA.length;i+=4){bufA[i]=bufA[i+1]=bufA[i+2]=128;bufA[i+3]=255;}
+let prevColBX=null,prevRowBY=null;
+
+function getLayout(ts){
+  const cR=cW.map(c=>Math.max(.05,c.base+c.w[0].am*Math.sin(c.w[0].ph+c.w[0].fr*ts)+c.w[1].am*Math.sin(c.w[1].ph+c.w[1].fr*ts)));
+  const rR=rW.map(r=>Math.max(.05,r.base+r.w[0].am*Math.sin(r.w[0].ph+r.w[0].fr*ts)+r.w[1].am*Math.sin(r.w[1].ph+r.w[1].fr*ts)));
+  const cS=cR.reduce((a,b)=>a+b),rS=rR.reduce((a,b)=>a+b);
+  const colW=cR.map(v=>v/cS*SZ),rowH=rR.map(v=>v/rS*SZ);
+  const colX=[],rowY=[];
+  let cx=0;for(let c=0;c<COLS;c++){colX.push(cx);cx+=colW[c];}
+  let cy=0;for(let r=0;r<ROWS;r++){rowY.push(cy);cy+=rowH[r];}
+  return{colW,rowH,colX,rowY,colBX:colX.slice(1),rowBY:rowY.slice(1)};
+}
+
+function frame(ts){
+  const{colW,rowH,colX,rowY,colBX,rowBY}=getLayout(ts);
+  const ox=ts*DX,oy=ts*DY;
+
+  // step 1: write clean+persist blend into bufB
+  for(let r=0;r<ROWS;r++){
+    const ny=r/ROWS*sc+oy;
+    for(let c=0;c<COLS;c++){
+      const n=fbm(c/COLS*sc+ox,ny);
+      const clr=Math.min(255,Math.max(0,(n*.53+.5)*240|0));
+      const x0=Math.round(colX[c]),y0=Math.round(rowY[r]);
+      const x1=Math.min(SZ,Math.round(colX[c]+colW[c])+1);
+      const y1=Math.min(SZ,Math.round(rowY[r]+rowH[r])+1);
+      for(let py=y0;py<y1;py++){
+        const yOff=py*SZ;
+        for(let px=x0;px<x1;px++){
+          const i=(yOff+px)<<2;
+          bufB[i]  =bufA[i]  *PERSIST+clr*(1-PERSIST)|0;
+          bufB[i+1]=bufA[i+1]*PERSIST+clr*(1-PERSIST)|0;
+          bufB[i+2]=bufA[i+2]*PERSIST+clr*(1-PERSIST)|0;
+          bufB[i+3]=255;
+        }
+      }
+    }
+  }
+
+  // step 2: pixel advection — vertical borders
+  if(prevColBX){
+    for(let y=0;y<SZ;y++){
+      const yOff=y*SZ;
+      for(let bi=0;bi<colBX.length;bi++){
+        const vel=Math.max(-16,Math.min(16,(colBX[bi]-prevColBX[bi])*VEL_MULT));
+        if(Math.abs(vel)<0.25) continue;
+        const bx=colBX[bi]|0;
+        for(let dx=-STRIP;dx<=STRIP;dx++){
+          const dstX=bx+dx;
+          if(dstX<0||dstX>=SZ) continue;
+          const srcX=(dstX-vel+0.5)|0;
+          if(srcX<0||srcX>=SZ) continue;
+          const tt=Math.max(0,1-Math.abs(dx)/STRIP);
+          const a=tt*tt*0.92;
+          if(a<0.02) continue;
+          const si=(yOff+srcX)<<2;
+          const di=(yOff+dstX)<<2;
+          bufB[di]  =bufB[di]  +(bufA[si]  -bufB[di]  )*a|0;
+          bufB[di+1]=bufB[di+1]+(bufA[si+1]-bufB[di+1])*a|0;
+          bufB[di+2]=bufB[di+2]+(bufA[si+2]-bufB[di+2])*a|0;
+        }
+      }
+    }
+  }
+
+  // step 3: pixel advection — horizontal borders
+  if(prevRowBY){
+    for(let bi=0;bi<rowBY.length;bi++){
+      const vel=Math.max(-16,Math.min(16,(rowBY[bi]-prevRowBY[bi])*VEL_MULT));
+      if(Math.abs(vel)<0.25) continue;
+      const by=rowBY[bi]|0;
+      for(let dy=-STRIP;dy<=STRIP;dy++){
+        const dstY=by+dy;
+        if(dstY<0||dstY>=SZ) continue;
+        const srcY=(dstY-vel+0.5)|0;
+        if(srcY<0||srcY>=SZ) continue;
+        const tt=Math.max(0,1-Math.abs(dy)/STRIP);
+        const a=tt*tt*0.92;
+        if(a<0.02) continue;
+        const dstOff=dstY*SZ,srcOff=srcY*SZ;
+        for(let x=0;x<SZ;x++){
+          const si=(srcOff+x)<<2;
+          const di=(dstOff+x)<<2;
+          bufB[di]  =bufB[di]  +(bufA[si]  -bufB[di]  )*a|0;
+          bufB[di+1]=bufB[di+1]+(bufA[si+1]-bufB[di+1])*a|0;
+          bufB[di+2]=bufB[di+2]+(bufA[si+2]-bufB[di+2])*a|0;
+        }
+      }
+    }
+  }
+
+  imgData.data.set(bufB);
+  ctx.putImageData(imgData,0,0);
+
+  const tmp=bufA;bufA=bufB;bufB=tmp;
+  prevColBX=colBX.slice();
+  prevRowBY=rowBY.slice();
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+})();
+</script>

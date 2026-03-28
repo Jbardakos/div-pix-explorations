@@ -1,0 +1,201 @@
+
+<style>
+.panel{display:grid;grid-template-columns:1fr 1fr;gap:6px 16px;padding:.75rem 0 1rem;margin:0 auto;max-width:500px;}
+.row{display:flex;align-items:center;gap:8px;}
+.row label{font-size:11px;color:var(--color-text-secondary);min-width:76px;letter-spacing:.04em;text-transform:uppercase;}
+.row input[type=range]{flex:1;height:3px;accent-color:var(--color-text-primary);}
+.row span{font-size:11px;color:var(--color-text-primary);min-width:26px;text-align:right;font-variant-numeric:tabular-nums;}
+</style>
+<canvas id="c" style="display:block;width:min(500px,82vw);aspect-ratio:1;margin:0 auto;image-rendering:pixelated;"></canvas>
+<div class="panel" id="panel"></div>
+<script>
+(function(){
+const DISP=500;
+const cv=document.getElementById('c');
+cv.style.width=cv.style.height=Math.min(DISP,window.innerWidth*.82)+'px';
+
+// --- params (live, mutated by sliders) ---
+const P={
+  res:100, levels:8, dither:1.0, persist:0.82,
+  vel:9, strip:14, speed:1.0, amp:1.0, cols:20, rows:20
+};
+
+// --- slider defs ---
+const SLIDERS=[
+  {key:'res',   label:'Pixelation', min:20,  max:200, step:5,  fmt:v=>v+'px'},
+  {key:'levels',label:'Colors',     min:2,   max:32,  step:1,  fmt:v=>v},
+  {key:'dither',label:'Dither',     min:0,   max:1,   step:.05,fmt:v=>v.toFixed(2)},
+  {key:'persist',label:'Smear',     min:.5,  max:.98, step:.01,fmt:v=>v.toFixed(2)},
+  {key:'vel',   label:'Drag',       min:1,   max:30,  step:1,  fmt:v=>v},
+  {key:'strip', label:'Spread',     min:2,   max:40,  step:1,  fmt:v=>v},
+  {key:'speed', label:'Speed',      min:.1,  max:4,   step:.1, fmt:v=>v.toFixed(1)+'x'},
+  {key:'amp',   label:'Wave amp',   min:.1,  max:3,   step:.1, fmt:v=>v.toFixed(1)+'x'},
+];
+
+const panel=document.getElementById('panel');
+SLIDERS.forEach(s=>{
+  const row=document.createElement('div');row.className='row';
+  const lbl=document.createElement('label');lbl.textContent=s.label;
+  const inp=document.createElement('input');
+  inp.type='range';inp.min=s.min;inp.max=s.max;inp.step=s.step;inp.value=P[s.key];
+  const val=document.createElement('span');val.textContent=s.fmt(P[s.key]);
+  inp.oninput=()=>{P[s.key]=parseFloat(inp.value);val.textContent=s.fmt(P[s.key]);rebuild();};
+  row.append(lbl,inp,val);panel.appendChild(row);
+});
+
+// --- noise ---
+function s3(t){return t*t*(3-2*t);}
+function lrp(a,b,t){return a+t*(b-a);}
+const NR=256,NRM=NR-1;
+const NV=new Float32Array(NR*NR);
+for(let i=0;i<NV.length;i++)NV[i]=Math.random()*2-1;
+function vn(x,y){
+  const xi=((Math.floor(x)%NR)+NR)&NRM,yi=((Math.floor(y)%NR)+NR)&NRM;
+  const xf=x-Math.floor(x),yf=y-Math.floor(y),u=s3(xf),vv=s3(yf);
+  const xi1=(xi+1)&NRM,yi1=(yi+1)&NRM;
+  return lrp(lrp(NV[yi*NR+xi],NV[yi*NR+xi1],u),lrp(NV[yi1*NR+xi],NV[yi1*NR+xi1],u),vv);
+}
+function fbm(x,y){return vn(x,y)*.5+vn(x*2.1,y*2.1)*.25+vn(x*4.3,y*4.3)*.125+vn(x*8.7,y*8.7)*.0625;}
+
+// Bayer 8x8
+const BM=[0,32,8,40,2,34,10,42,48,16,56,24,50,18,58,26,12,44,4,36,14,46,6,38,60,28,52,20,62,30,54,22,3,35,11,43,1,33,9,41,51,19,59,27,49,17,57,25,15,47,7,39,13,45,5,37,63,31,55,23,61,29,53,21];
+function bayer(x,y){return BM[(y&7)*8+(x&7)]/64;}
+
+// --- grid sine params (one per col/row, created on rebuild) ---
+let cW=[],rW=[];
+function makeWaves(n){
+  return Array.from({length:n},()=>({
+    base:1,
+    w:[{ph:Math.random()*Math.PI*2,fr:.00007+Math.random()*.0012,am:.15+Math.random()*.45},
+       {ph:Math.random()*Math.PI*2,fr:.00004+Math.random()*.0006,am:.1+Math.random()*.25}]
+  }));
+}
+cW=makeWaves(P.cols);rW=makeWaves(P.rows);
+
+// --- canvas/buffer state ---
+const ctx=cv.getContext('2d');ctx.imageSmoothingEnabled=false;
+let RES=P.res;
+let bufA=new Float32Array(RES*RES);
+let bufB=new Float32Array(RES*RES);
+let imgData=ctx.createImageData(RES,RES);
+let prevColBX=null,prevRowBY=null;
+for(let i=0;i<bufA.length;i++)bufA[i]=128;
+
+function rebuild(){
+  const nr=P.res|0;
+  if(nr!==RES){
+    RES=nr;cv.width=RES;cv.height=RES;
+    bufA=new Float32Array(RES*RES);bufB=new Float32Array(RES*RES);
+    imgData=ctx.createImageData(RES,RES);
+    for(let i=0;i<bufA.length;i++)bufA[i]=128;
+    prevColBX=null;prevRowBY=null;
+  }
+}
+cv.width=RES;cv.height=RES;
+
+const DX=.000055,DY=.000042,sc=3.5;
+
+function getLayout(ts){
+  const COLS=P.cols|0,ROWS=P.rows|0;
+  while(cW.length<COLS)cW.push(makeWaves(1)[0]);
+  while(rW.length<ROWS)rW.push(makeWaves(1)[0]);
+  const mul=P.amp;
+  const cR=cW.slice(0,COLS).map(c=>Math.max(.05,c.base+(c.w[0].am*mul)*Math.sin(c.w[0].ph+c.w[0].fr*ts*P.speed)+(c.w[1].am*mul)*Math.sin(c.w[1].ph+c.w[1].fr*ts*P.speed)));
+  const rR=rW.slice(0,ROWS).map(r=>Math.max(.05,r.base+(r.w[0].am*mul)*Math.sin(r.w[0].ph+r.w[0].fr*ts*P.speed)+(r.w[1].am*mul)*Math.sin(r.w[1].ph+r.w[1].fr*ts*P.speed)));
+  const cS=cR.reduce((a,b)=>a+b),rS=rR.reduce((a,b)=>a+b);
+  const colW=cR.map(v=>v/cS*RES),rowH=rR.map(v=>v/rS*RES);
+  const colX=[],rowY=[];
+  let cx=0;for(let i=0;i<COLS;i++){colX.push(cx);cx+=colW[i];}
+  let cy=0;for(let i=0;i<ROWS;i++){rowY.push(cy);cy+=rowH[i];}
+  return{COLS,ROWS,colW,rowH,colX,rowY,colBX:colX.slice(1),rowBY:rowY.slice(1)};
+}
+
+function quantize(v,x,y){
+  const L=Math.max(2,P.levels|0);
+  const d=P.dither;
+  const norm=v/255;
+  const thresh=bayer(x,y)*d;
+  const q=Math.floor((norm*L+thresh))/L;
+  return Math.min(255,Math.max(0,Math.round(q*255/(L-1))*(L-1)|0));
+}
+
+function frame(ts){
+  const{COLS,ROWS,colW,rowH,colX,rowY,colBX,rowBY}=getLayout(ts);
+  const ox=ts*DX*P.speed,oy=ts*DY*P.speed;
+
+  // clean cells
+  const clean=new Float32Array(RES*RES);
+  for(let r=0;r<ROWS;r++){
+    const ny=r/ROWS*sc+oy;
+    for(let c=0;c<COLS;c++){
+      const n=fbm(c/COLS*sc+ox,ny);
+      const v=Math.min(255,Math.max(0,(n*.53+.5)*240));
+      const x0=Math.round(colX[c]),y0=Math.round(rowY[r]);
+      const x1=Math.min(RES,Math.round(colX[c]+colW[c])+1);
+      const y1=Math.min(RES,Math.round(rowY[r]+rowH[r])+1);
+      for(let py=y0;py<y1;py++)for(let px=x0;px<x1;px++)clean[py*RES+px]=v;
+    }
+  }
+
+  const PER=P.persist;
+  for(let i=0;i<RES*RES;i++)bufB[i]=bufA[i]*PER+clean[i]*(1-PER);
+
+  const VM=P.vel,SP=P.strip|0;
+
+  if(prevColBX&&prevColBX.length===colBX.length){
+    for(let bi=0;bi<colBX.length;bi++){
+      const vel=Math.max(-16,Math.min(16,(colBX[bi]-prevColBX[bi])*VM));
+      if(Math.abs(vel)<0.2)continue;
+      const bx=colBX[bi]|0;
+      for(let y=0;y<RES;y++){
+        const yOff=y*RES;
+        for(let dx=-SP;dx<=SP;dx++){
+          const dstX=bx+dx;if(dstX<0||dstX>=RES)continue;
+          const srcXf=dstX-vel,srcX0=Math.floor(srcXf),srcX1=srcX0+1;
+          if(srcX0<0||srcX1>=RES)continue;
+          const tt=Math.max(0,1-Math.abs(dx)/SP),a=tt*tt*0.95;
+          if(a<.02)continue;
+          const f=srcXf-srcX0;
+          const sv=bufA[yOff+srcX0]*(1-f)+bufA[yOff+srcX1]*f;
+          bufB[yOff+dstX]=bufB[yOff+dstX]*(1-a)+sv*a;
+        }
+      }
+    }
+  }
+
+  if(prevRowBY&&prevRowBY.length===rowBY.length){
+    for(let bi=0;bi<rowBY.length;bi++){
+      const vel=Math.max(-16,Math.min(16,(rowBY[bi]-prevRowBY[bi])*VM));
+      if(Math.abs(vel)<0.2)continue;
+      const by2=rowBY[bi]|0;
+      for(let dy=-SP;dy<=SP;dy++){
+        const dstY=by2+dy;if(dstY<0||dstY>=RES)continue;
+        const srcYf=dstY-vel,srcY0=Math.floor(srcYf),srcY1=srcY0+1;
+        if(srcY0<0||srcY1>=RES)continue;
+        const tt=Math.max(0,1-Math.abs(dy)/SP),a=tt*tt*0.95;
+        if(a<.02)continue;
+        const f=srcYf-srcY0;
+        const off0=srcY0*RES,off1=srcY1*RES,dOff=dstY*RES;
+        for(let x=0;x<RES;x++){
+          const sv=bufA[off0+x]*(1-f)+bufA[off1+x]*f;
+          bufB[dOff+x]=bufB[dOff+x]*(1-a)+sv*a;
+        }
+      }
+    }
+  }
+
+  const dd=imgData.data;
+  for(let y=0;y<RES;y++)for(let x=0;x<RES;x++){
+    const v=quantize(bufB[y*RES+x],x,y);
+    const i=(y*RES+x)<<2;
+    dd[i]=dd[i+1]=dd[i+2]=v;dd[i+3]=255;
+  }
+  ctx.putImageData(imgData,0,0);
+
+  const tmp=bufA;bufA=bufB;bufB=tmp;
+  prevColBX=colBX.slice();prevRowBY=rowBY.slice();
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+})();
+</script>

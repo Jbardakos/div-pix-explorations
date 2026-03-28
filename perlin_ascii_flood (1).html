@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Perlin ASCII Flood</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{background:#000;width:100%;height:100%;overflow:hidden}
+  #wrap{display:flex;align-items:center;justify-content:center;width:100vw;height:100vh}
+  #grid{display:grid;overflow:hidden;width:min(97vw,97vh);aspect-ratio:1}
+  #grid>div{position:relative;overflow:hidden}
+  #grid>div>canvas{position:absolute;top:0;left:0;width:100%;height:100%;display:block}
+</style>
+</head>
+<body>
+<div id="wrap"><div id="grid"></div></div>
+<script>
+(function(){
+const COLS = 10, ROWS = 10, N = COLS * ROWS;
+
+const FONT_SIZE = 36;
+const FONT_FACE = "'Courier New', Courier, monospace";
+const FONT_STR  = `bold ${FONT_SIZE}px ${FONT_FACE}`;
+
+const _mc = document.createElement('canvas').getContext('2d');
+_mc.font = FONT_STR;
+const CHAR_W = _mc.measureText('M').width;
+const CHAR_H = FONT_SIZE * 1.18;
+
+const MAX_TRACES = 5;
+const SNAP_MS    = 220;
+const TRACE_LIFE = 1800;
+const RATE_MIN   = 80, RATE_MAX = 600;
+
+const CHARS = '!#%&?@$*+=~^ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz' +
+              '0123456789░▒▓│─┼╔╗╚╝═║◆○●◇★±×∑∂∆∇√∞:;.,/\\|<>';
+const CL = CHARS.length;
+
+const HEX = Array.from({length:256},(_,i)=>{const h=i.toString(16).padStart(2,'0');return`#${h}${h}${h}`});
+
+const g = document.getElementById('grid');
+g.style.gridTemplateColumns = `repeat(${COLS},1fr)`;
+g.style.gridTemplateRows    = `repeat(${ROWS},1fr)`;
+
+const cells = Array.from({length:N},()=>{
+  const d  = document.createElement('div');
+  const cv = document.createElement('canvas');
+  d.appendChild(cv);
+  g.appendChild(d);
+  const ctx = cv.getContext('2d',{alpha:false});
+  ctx.font = FONT_STR; ctx.textBaseline = 'top';
+  return { d, cv, ctx, pw:0, ph:0, curGrid:null, traces:[], lastSnap:0, nextChange:0 };
+});
+
+const NR=256,NM=NR-1;
+function mkV(){const V=new Float32Array(NR*NR);for(let i=0;i<V.length;i++)V[i]=Math.random()*2-1;return V}
+const V1=mkV(), V2=mkV(), V3=mkV();
+
+function s3(t){return t*t*(3-2*t)}
+function lrp(a,b,t){return a+(b-a)*t}
+function vn(V,x,y){
+  const xi=((Math.floor(x)%NR)+NR)&NM, yi=((Math.floor(y)%NR)+NR)&NM;
+  const u=s3(x-Math.floor(x)), v=s3(y-Math.floor(y));
+  const x1=(xi+1)&NM, y1=(yi+1)&NM;
+  return lrp(lrp(V[yi*NR+xi],V[yi*NR+x1],u),lrp(V[y1*NR+xi],V[y1*NR+x1],u),v);
+}
+function fbm(V,x,y){
+  return vn(V,x,y)*.5+vn(V,x*2.1,y*2.1)*.25+vn(V,x*4.3,y*4.3)*.125+vn(V,x*8.7,y*8.7)*.0625;
+}
+
+const cW=Array.from({length:COLS},()=>({base:1,w:[
+  {ph:Math.random()*Math.PI*2,fr:.00007+Math.random()*.0012,am:.15+Math.random()*.45},
+  {ph:Math.random()*Math.PI*2,fr:.00004+Math.random()*.0006,am:.1 +Math.random()*.25}
+]}));
+const rW=Array.from({length:ROWS},()=>({base:1,w:[
+  {ph:Math.random()*Math.PI*2,fr:.00007+Math.random()*.0012,am:.15+Math.random()*.45},
+  {ph:Math.random()*Math.PI*2,fr:.00004+Math.random()*.0006,am:.1 +Math.random()*.25}
+]}));
+
+const C_DX=0.000055,C_DY=0.000042;
+const A_DX=-0.000038,A_DY=0.000071;
+const R_DX=0.000029, R_DY=-0.000053;
+const C_SC=3.5, A_SC=3.2, R_SC=2.8;
+
+function sampleGrid(col,row,cCols,cRows,aox,aoy){
+  const grid=[];
+  for(let cr=0;cr<cRows;cr++){
+    let s='';
+    for(let cc=0;cc<cCols;cc++){
+      const nx=(col+(cc+.5)/cCols)/COLS*A_SC+aox;
+      const ny=(row+(cr+.5)/cRows)/ROWS*A_SC+aoy;
+      const an=fbm(V2,nx,ny);
+      s+=CHARS[Math.max(0,Math.min(CL-1,Math.floor((an*.53+.5)*CL)))];
+    }
+    grid.push(s);
+  }
+  return grid;
+}
+
+function loop(t){
+  const cR=cW.map(c=>Math.max(.05,c.base+c.w[0].am*Math.sin(c.w[0].ph+c.w[0].fr*t)+c.w[1].am*Math.sin(c.w[1].ph+c.w[1].fr*t)));
+  const rR=rW.map(r=>Math.max(.05,r.base+r.w[0].am*Math.sin(r.w[0].ph+r.w[0].fr*t)+r.w[1].am*Math.sin(r.w[1].ph+r.w[1].fr*t)));
+  const cS=cR.reduce((a,b)=>a+b), rS=rR.reduce((a,b)=>a+b);
+  g.style.gridTemplateColumns=cR.map(v=>(v/cS*100).toFixed(2)+'%').join(' ');
+  g.style.gridTemplateRows   =rR.map(v=>(v/rS*100).toFixed(2)+'%').join(' ');
+
+  const cox=t*C_DX, coy=t*C_DY;
+  const aox=t*A_DX, aoy=t*A_DY;
+  const rox=t*R_DX, roy=t*R_DY;
+
+  let k=0;
+  for(let row=0;row<ROWS;row++){
+    for(let col=0;col<COLS;col++){
+      const cell=cells[k++];
+      const {d,cv,ctx}=cell;
+      const pw=d.offsetWidth, ph=d.offsetHeight;
+      if(pw===0||ph===0) continue;
+
+      if(pw!==cell.pw||ph!==cell.ph){
+        cv.width=pw; cv.height=ph;
+        ctx.font=FONT_STR; ctx.textBaseline='top';
+        cell.pw=pw; cell.ph=ph;
+        cell.curGrid=null; cell.nextChange=0;
+      }
+
+      const cCols=Math.max(1,Math.floor(pw/CHAR_W));
+      const cRows=Math.max(1,Math.floor(ph/CHAR_H));
+
+      // rate noise → per-cell change interval
+      const rn=fbm(V3, col/COLS*R_SC+rox, row/ROWS*R_SC+roy);
+      const interval=RATE_MIN+(RATE_MAX-RATE_MIN)*((rn*.53+.5));
+
+      if(t>=cell.nextChange || !cell.curGrid){
+        if(cell.curGrid && t-cell.lastSnap>SNAP_MS){
+          cell.traces.unshift({rows:cell.curGrid, born:t});
+          if(cell.traces.length>MAX_TRACES) cell.traces.length=MAX_TRACES;
+          cell.lastSnap=t;
+        }
+        cell.curGrid=sampleGrid(col,row,cCols,cRows,aox,aoy);
+        cell.nextChange=t+interval;
+      }
+
+      cell.traces=cell.traces.filter(tr=>(t-tr.born)<TRACE_LIFE);
+
+      const cn=fbm(V1, col/COLS*C_SC+cox, row/ROWS*C_SC+coy);
+      const bgV=Math.min(255,Math.max(0,Math.round((cn*.53+.5)*240)));
+
+      ctx.fillStyle=HEX[bgV];
+      ctx.fillRect(0,0,pw,ph);
+
+      const rBase=bgV>128?'0,0,0':'255,255,255';
+
+      for(let i=cell.traces.length-1;i>=0;i--){
+        const tr=cell.traces[i];
+        const op=Math.max(0,1-(t-tr.born)/TRACE_LIFE);
+        if(op<0.006) continue;
+        ctx.fillStyle=`rgba(${rBase},${op.toFixed(3)})`;
+        const tR=Math.min(tr.rows.length,cRows);
+        for(let cr=0;cr<tR;cr++) ctx.fillText(tr.rows[cr].slice(0,cCols),0,cr*CHAR_H);
+      }
+
+      ctx.fillStyle=`rgba(${rBase},0.96)`;
+      for(let cr=0;cr<cRows;cr++) ctx.fillText(cell.curGrid[cr],0,cr*CHAR_H);
+    }
+  }
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>

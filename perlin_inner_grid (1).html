@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Perlin Inner Grid</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{background:#000;width:100%;height:100%;overflow:hidden;font-family:'Courier New',monospace}
+#wrap{display:flex;align-items:stretch;width:100vw;height:100vh}
+#arena{flex:1;display:flex;align-items:center;justify-content:center;min-width:0}
+#arena canvas{display:block}
+
+#panel{
+  width:215px;min-width:215px;background:#060606;border-left:1px solid #141414;
+  overflow-y:auto;padding:12px 10px 18px;display:flex;flex-direction:column;gap:1px;
+  scrollbar-width:thin;scrollbar-color:#1a1a1a #060606;
+}
+#panel::-webkit-scrollbar{width:4px}
+#panel::-webkit-scrollbar-track{background:#060606}
+#panel::-webkit-scrollbar-thumb{background:#1c1c1c}
+.sec{color:#2a7a2a;font-size:8px;letter-spacing:.22em;text-transform:uppercase;
+  margin:9px 0 3px;padding-bottom:3px;border-bottom:1px solid #0e0e0e}
+.row{display:flex;align-items:center;gap:4px;padding:2px 0}
+.row label{color:#666;font-size:8px;min-width:70px;letter-spacing:.04em}
+.val{color:#4f4;font-size:8px;min-width:32px;text-align:right}
+input[type=range]{
+  flex:1;height:2px;cursor:pointer;-webkit-appearance:none;appearance:none;
+  border-radius:1px;outline:none;border:none;
+  background:linear-gradient(to right,#2d6e2d var(--p,50%),#181818 var(--p,50%));
+}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:8px;height:8px;border-radius:50%;background:#4f4;cursor:pointer;}
+input[type=range]::-moz-range-thumb{width:8px;height:8px;border-radius:50%;background:#4f4;cursor:pointer;border:none}
+#btn-reset{
+  margin-top:12px;padding:5px 0;background:#0c0c0c;border:1px solid #1a1a1a;
+  color:#444;font-size:8px;letter-spacing:.14em;cursor:pointer;font-family:inherit;text-transform:uppercase;width:100%;
+}
+#btn-reset:hover{color:#4f4;border-color:#2a4a2a}
+</style>
+</head>
+<body>
+<div id="wrap"><div id="arena"></div><div id="panel"></div></div>
+<script>
+(function(){
+const IC=10, IR=10;           // inner sub-grid per outer cell (fixed)
+const INNER_CAP=200;          // max outer cells tracked in inner buffer per axis
+
+/* ── defaults ──────────────────────────────────────────────────────────────── */
+const DEF={
+  gsz:10,
+  dspx:1,dspy:1,dirx:1,diry:1,
+  sc:3.5,oct:4,lac:2.1,gain:.5,
+  con:.53,bri:.5,rng:240,off:0,
+  wamp:1,wfrq:1,
+  nw:22,wspd:1,guid:1.2,ethr:85,ebst:.7,
+  fade:.971,slide:.45,glitch:.3,
+  niw:40,ispd:1.4,ifade:.94,ipaint:.85,ibloom:1,igrid:.4,
+};
+const P={...DEF};
+
+const SPEC=[
+  {sec:'GRID'},
+  {k:'gsz', l:'Grid Size',   mn:3,   mx:400,   st:1},
+  {sec:'DRIFT'},
+  {k:'dspx',l:'Speed X',     mn:0,   mx:5,     st:.01},
+  {k:'dspy',l:'Speed Y',     mn:0,   mx:5,     st:.01},
+  {k:'dirx',l:'Dir X',       mn:-1,  mx:1,     st:.01},
+  {k:'diry',l:'Dir Y',       mn:-1,  mx:1,     st:.01},
+  {sec:'NOISE FIELD'},
+  {k:'sc',  l:'Scale',       mn:.5,  mx:12,    st:.1},
+  {k:'oct', l:'Octaves',     mn:1,   mx:4,     st:.01},
+  {k:'lac', l:'Lacunarity',  mn:1.2, mx:4,     st:.05},
+  {k:'gain',l:'Gain',        mn:.2,  mx:.8,    st:.01},
+  {sec:'COLOUR'},
+  {k:'con', l:'Contrast',    mn:0,   mx:2,     st:.01},
+  {k:'bri', l:'Brightness',  mn:-.5, mx:1.5,   st:.01},
+  {k:'rng', l:'Range',       mn:40,  mx:255,   st:1},
+  {k:'off', l:'Offset',      mn:0,   mx:60,    st:1},
+  {sec:'OUTER WAVES'},
+  {k:'wamp',l:'Amplitude',   mn:0,   mx:3,     st:.01},
+  {k:'wfrq',l:'Freq Scale',  mn:0,   mx:5,     st:.01},
+  {sec:'OUTER WALKERS'},
+  {k:'nw',  l:'Count',       mn:0,   mx:400,   st:1},
+  {k:'wspd',l:'Speed',       mn:0,   mx:5,     st:.01},
+  {k:'guid',l:'Guidance',    mn:0,   mx:3,     st:.01},
+  {k:'ethr',l:'Eat Thresh',  mn:0,   mx:255,   st:1},
+  {k:'ebst',l:'Eat Boost',   mn:0,   mx:2,     st:.01},
+  {sec:'OUTER TRACE'},
+  {k:'fade',l:'Fade',        mn:.9,  mx:.9999, st:.0001},
+  {k:'slide',l:'Slide',      mn:0,   mx:4,     st:.01},
+  {k:'glitch',l:'Glitch',    mn:0,   mx:1,     st:.01},
+  {sec:'INNER WALKERS'},
+  {k:'niw', l:'Count',       mn:0,   mx:600,   st:1},
+  {k:'ispd',l:'Speed',       mn:0,   mx:5,     st:.01},
+  {k:'ifade',l:'Fade',       mn:.8,  mx:.9999, st:.0001},
+  {k:'ipaint',l:'Paint',     mn:0,   mx:2,     st:.01},
+  {k:'ibloom',l:'Bloom',     mn:0,   mx:3,     st:.01},
+  {k:'igrid',l:'Grid Lines', mn:0,   mx:1,     st:.01},
+];
+
+/* ── build panel ────────────────────────────────────────────────────────────── */
+const panel=document.getElementById('panel');
+SPEC.forEach(s=>{
+  if(s.sec){const h=document.createElement('div');h.className='sec';h.textContent=s.sec;panel.appendChild(h);return;}
+  const row=document.createElement('div');row.className='row';
+  row.innerHTML=`<label>${s.l}</label><input type="range" id="sr_${s.k}" min="${s.mn}" max="${s.mx}" step="${s.st}" value="${DEF[s.k]}"><span class="val" id="sv_${s.k}"></span>`;
+  panel.appendChild(row);
+});
+const btn=document.createElement('button');btn.id='btn-reset';btn.textContent='↺  RESET ALL';panel.appendChild(btn);
+
+function fmt(v){const a=Math.abs(v);return a<10?v.toFixed(a<1?3:2):Math.round(v)+'';}
+SPEC.filter(s=>s.k).forEach(s=>{
+  const sl=document.getElementById('sr_'+s.k),vl=document.getElementById('sv_'+s.k);
+  const upd=()=>{
+    P[s.k]=parseFloat(sl.value);vl.textContent=fmt(P[s.k]);
+    const p=((P[s.k]-s.mn)/(s.mx-s.mn)*100).toFixed(1)+'%';
+    sl.style.background=`linear-gradient(to right,#2d6e2d ${p},#181818 ${p})`;
+  };
+  sl.addEventListener('input',upd);upd();
+});
+btn.addEventListener('click',()=>{
+  Object.assign(P,DEF);
+  SPEC.filter(s=>s.k).forEach(s=>{const sl=document.getElementById('sr_'+s.k);if(sl){sl.value=DEF[s.k];sl.dispatchEvent(new Event('input'));}});
+  scheduleRebuild();
+});
+document.getElementById('sr_gsz').addEventListener('input',scheduleRebuild);
+
+/* ── canvas ─────────────────────────────────────────────────────────────────── */
+const arena=document.getElementById('arena');
+const cv=document.createElement('canvas');
+arena.appendChild(cv);
+const ctx2d=cv.getContext('2d',{alpha:false});
+let W=0,H=0,imgData=null,pxBuf=null;
+
+function resizeCanvas(){
+  const aw=arena.clientWidth,ah=arena.clientHeight;
+  const sz=Math.floor(Math.min(aw,ah)*0.96);
+  if(sz===W)return;
+  W=H=sz;
+  cv.width=cv.height=sz;
+  cv.style.width=cv.style.height=sz+'px';
+  imgData=ctx2d.createImageData(sz,sz);
+  pxBuf=imgData.data;
+}
+
+/* ── noise ──────────────────────────────────────────────────────────────────── */
+const NR=256,NM=NR-1;
+function mkV(){const V=new Float32Array(NR*NR);for(let i=0;i<V.length;i++)V[i]=Math.random()*2-1;return V;}
+const V1=mkV();
+function s3(t){return t*t*(3-2*t);}
+function lrp(a,b,t){return a+(b-a)*t;}
+function vn(x,y){
+  const xi=((Math.floor(x)%NR)+NR)&NM,yi=((Math.floor(y)%NR)+NR)&NM;
+  const u=s3(x-Math.floor(x)),v=s3(y-Math.floor(y));
+  const x1=(xi+1)&NM,y1=(yi+1)&NM;
+  return lrp(lrp(V1[yi*NR+xi],V1[yi*NR+x1],u),lrp(V1[y1*NR+xi],V1[y1*NR+x1],u),v);
+}
+function fbm(x,y){
+  const{oct,lac,gain}=P;
+  let v=0,amp=1,freq=1,tot=0;
+  const io=Math.floor(oct),fr=oct-io;
+  for(let i=0;i<io;i++){v+=vn(x*freq,y*freq)*amp;tot+=amp;freq*=lac;amp*=gain;}
+  if(fr>.001){v+=vn(x*freq,y*freq)*amp*fr;tot+=amp*fr;}
+  return tot?v/tot*1.5:0;
+}
+
+/* ── mutable grid state ─────────────────────────────────────────────────────── */
+let COLS=0,ROWS=0,N=0;
+let cW=[],rW=[];
+let outerTrace=null,traceTmp=null,nArr=null;
+let outerWalkers=[];
+let GIC=0,GIR=0,innerTrace=null,innerWalkers=[];
+
+// pixel boundary arrays (reused each frame)
+let cBounds=null,rBounds=null;
+
+function buildGrid(sz){
+  sz=Math.max(3,Math.min(400,sz));
+  if(sz===COLS)return;
+  COLS=sz;ROWS=sz;N=COLS*ROWS;
+  GIC=Math.min(COLS,INNER_CAP)*IC;
+  GIR=Math.min(ROWS,INNER_CAP)*IR;
+
+  outerTrace=new Float32Array(N);
+  traceTmp=new Float32Array(N);
+  nArr=new Float32Array(N);
+  innerTrace=new Float32Array(GIC*GIR);
+  cBounds=new Float32Array(COLS+1);
+  rBounds=new Float32Array(ROWS+1);
+
+  cW=Array.from({length:COLS},()=>({base:1,w:[
+    {ph:Math.random()*Math.PI*2,fr:.00007+Math.random()*.0012,am:.15+Math.random()*.45},
+    {ph:Math.random()*Math.PI*2,fr:.00004+Math.random()*.0006,am:.1+Math.random()*.25}
+  ]}));
+  rW=Array.from({length:ROWS},()=>({base:1,w:[
+    {ph:Math.random()*Math.PI*2,fr:.00007+Math.random()*.0012,am:.15+Math.random()*.45},
+    {ph:Math.random()*Math.PI*2,fr:.00004+Math.random()*.0006,am:.1+Math.random()*.25}
+  ]}));
+  outerWalkers=[];innerWalkers=[];
+}
+
+let rebuildPending=false;
+function scheduleRebuild(){
+  if(!rebuildPending){rebuildPending=true;requestAnimationFrame(()=>{rebuildPending=false;buildGrid(Math.round(P.gsz));});}
+}
+
+buildGrid(DEF.gsz);
+
+/* ── outer walker ───────────────────────────────────────────────────────────── */
+const DIRS=[[1,0],[-1,0],[0,1],[0,-1],[1,1],[-1,1],[1,-1],[-1,-1]];
+function stepOW(w){
+  const c0=((Math.floor(w.x)%COLS)+COLS)%COLS,r0=((Math.floor(w.y)%ROWS)+ROWS)%ROWS;
+  let gdx=0,gdy=0;
+  for(const[dc,dr]of DIRS){
+    const nc=((c0+dc)+COLS)%COLS,nr=((r0+dr)+ROWS)%ROWS;
+    const dark=1-nArr[nr*COLS+nc]/255,d=Math.sqrt(dc*dc+dr*dr);
+    gdx+=dc*dark/d;gdy+=dr*dark/d;
+  }
+  const gl=Math.sqrt(gdx*gdx+gdy*gdy)||1;gdx/=gl;gdy/=gl;
+  const{wspd:sp,guid:gu}=P;
+  const rx=(Math.random()-.5)*2,ry=(Math.random()-.5)*2;
+  w.vx=w.vx*.83+(gdx*Math.min(1,gu)+rx*Math.max(0,1-gu))*sp*.007;
+  w.vy=w.vy*.83+(gdy*Math.min(1,gu)+ry*Math.max(0,1-gu))*sp*.007;
+  const spd=Math.sqrt(w.vx*w.vx+w.vy*w.vy),cap=sp*.13;
+  if(spd>cap){w.vx*=cap/spd;w.vy*=cap/spd;}
+  outerTrace[r0*COLS+c0]=Math.min(1,outerTrace[r0*COLS+c0]+P.ebst*.28);
+  w.x=((w.x+w.vx)%COLS+COLS)%COLS;w.y=((w.y+w.vy)%ROWS+ROWS)%ROWS;
+  const nc=((Math.floor(w.x)%COLS)+COLS)%COLS,nr=((Math.floor(w.y)%ROWS)+ROWS)%ROWS;
+  const idx=nr*COLS+nc;
+  if(nArr[idx]<P.ethr)outerTrace[idx]=Math.min(1,outerTrace[idx]+P.ebst*(1-nArr[idx]/255));
+}
+
+/* ── inner walker ───────────────────────────────────────────────────────────── */
+function stepIW(w){
+  const{ispd,ipaint,ibloom}=P;
+  w.vx=w.vx*.85+(Math.random()-.5)*ispd*.12;
+  w.vy=w.vy*.85+(Math.random()-.5)*ispd*.12;
+  const spd=Math.sqrt(w.vx*w.vx+w.vy*w.vy),cap=ispd*.18;
+  if(spd>cap){w.vx*=cap/spd;w.vy*=cap/spd;}
+  w.x=((w.x+w.vx)%GIC+GIC)%GIC;
+  w.y=((w.y+w.vy)%GIR+GIR)%GIR;
+  const ic=Math.floor(w.x)%GIC,ir=Math.floor(w.y)%GIR;
+  const bR=Math.floor(ibloom);
+  for(let dr=-bR;dr<=bR;dr++){
+    for(let dc=-bR;dc<=bR;dc++){
+      const d=Math.sqrt(dr*dr+dc*dc);if(d>ibloom+.5)continue;
+      const falloff=d<=.5?1:Math.max(0,1-(d-bR)/1.5);
+      const tc=((ic+dc)%GIC+GIC)%GIC,tr2=((ir+dr)%GIR+GIR)%GIR;
+      innerTrace[tr2*GIC+tc]=Math.min(1,innerTrace[tr2*GIC+tc]+ipaint*falloff*.06);
+    }
+  }
+}
+
+/* ── outer slide trace ──────────────────────────────────────────────────────── */
+function slideTrace(sdx,sdy){
+  if(Math.abs(sdx)<5e-5&&Math.abs(sdy)<5e-5)return;
+  traceTmp.set(outerTrace);
+  for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){
+    const x=c-sdx,y=r-sdy;
+    const x0=Math.floor(x),y0=Math.floor(y),x1=x0+1,y1=y0+1,tx=x-x0,ty=y-y0;
+    const s=(cc,rr)=>(cc<0||cc>=COLS||rr<0||rr>=ROWS)?0:traceTmp[rr*COLS+cc];
+    outerTrace[r*COLS+c]=(1-tx)*(1-ty)*s(x0,y0)+tx*(1-ty)*s(x1,y0)+(1-tx)*ty*s(x0,y1)+tx*ty*s(x1,y1);
+  }
+}
+
+/* ── ImageData helpers ──────────────────────────────────────────────────────── */
+// fill pixel rect with grey value
+function fillGray(px0,py0,px1,py1,gray){
+  const d=pxBuf;
+  for(let py=py0;py<py1;py++){
+    let i=(py*W+px0)<<2;
+    for(let px=px0;px<px1;px++,i+=4){
+      d[i]=d[i+1]=d[i+2]=gray;d[i+3]=255;
+    }
+  }
+}
+// blend a rect with a colour + alpha
+function blendRect(px0,py0,px1,py1,r,gb,b,alpha){
+  if(alpha<0.008)return;
+  const d=pxBuf,ia=1-alpha;
+  for(let py=py0;py<py1;py++){
+    let i=(py*W+px0)<<2;
+    for(let px=px0;px<px1;px++,i+=4){
+      d[i]  =(d[i]  *ia+r *alpha)|0;
+      d[i+1]=(d[i+1]*ia+gb*alpha)|0;
+      d[i+2]=(d[i+2]*ia+b *alpha)|0;
+    }
+  }
+}
+// draw a 1-px horizontal line
+function hLine(y,x0,x1,r,gb,b,alpha){
+  if(y<0||y>=H||alpha<0.01)return;
+  const d=pxBuf,ia=1-alpha;
+  let i=(y*W+Math.max(0,x0))<<2;
+  for(let x=Math.max(0,x0);x<Math.min(W,x1);x++,i+=4){
+    d[i]=(d[i]*ia+r*alpha)|0;d[i+1]=(d[i+1]*ia+gb*alpha)|0;d[i+2]=(d[i+2]*ia+b*alpha)|0;
+  }
+}
+// draw a 1-px vertical line
+function vLine(x,y0,y1,r,gb,b,alpha){
+  if(x<0||x>=W||alpha<0.01)return;
+  for(let y=Math.max(0,y0);y<Math.min(H,y1);y++){
+    const i=(y*W+x)<<2;const d=pxBuf,ia=1-alpha;
+    d[i]=(d[i]*ia+r*alpha)|0;d[i+1]=(d[i+1]*ia+gb*alpha)|0;d[i+2]=(d[i+2]*ia+b*alpha)|0;
+  }
+}
+
+/* ── main loop ──────────────────────────────────────────────────────────────── */
+const BASE_DX=.000055,BASE_DY=.000042;
+let prevT=0;
+
+function loop(t){
+  const dt=Math.min(t-prevT,50);prevT=t;
+  resizeCanvas();
+  if(!COLS||!W)return requestAnimationFrame(loop);
+
+  const{dspx,dspy,dirx,diry,sc,con,bri,rng,off,wamp,wfrq,fade,slide,glitch}=P;
+  const ox=t*BASE_DX*dspx*dirx,oy=t*BASE_DY*dspy*diry;
+
+  /* ── compute wave-deformed pixel boundaries ── */
+  const cR=cW.map(c=>Math.max(.05,c.base+c.w[0].am*wamp*Math.sin(c.w[0].ph+c.w[0].fr*wfrq*t)+c.w[1].am*wamp*Math.sin(c.w[1].ph+c.w[1].fr*wfrq*t)));
+  const rR=rW.map(r=>Math.max(.05,r.base+r.w[0].am*wamp*Math.sin(r.w[0].ph+r.w[0].fr*wfrq*t)+r.w[1].am*wamp*Math.sin(r.w[1].ph+r.w[1].fr*wfrq*t)));
+  const cS=cR.reduce((a,b)=>a+b),rS=rR.reduce((a,b)=>a+b);
+  cBounds[0]=0; for(let c=0;c<COLS;c++)cBounds[c+1]=cBounds[c]+cR[c]/cS*W;
+  rBounds[0]=0; for(let r=0;r<ROWS;r++)rBounds[r+1]=rBounds[r]+rR[r]/rS*H;
+
+  /* ── noise ── */
+  for(let r=0;r<ROWS;r++){const ny=r/ROWS*sc+oy;
+    for(let c=0;c<COLS;c++){
+      const n=fbm(c/COLS*sc+ox,ny);
+      nArr[r*COLS+c]=Math.min(255,Math.max(0,(n*con+bri)*rng+off));
+    }
+  }
+
+  /* ── outer trace ── */
+  for(let i=0;i<N;i++)outerTrace[i]*=fade;
+  if(slide>1e-4)slideTrace(BASE_DX*dspx*dirx*dt*COLS/sc*slide,BASE_DY*dspy*diry*dt*ROWS/sc*slide);
+  if(glitch>0&&Math.random()<glitch*.05){
+    const row=Math.floor(Math.random()*ROWS),shift=Math.round((Math.random()-.5)*COLS*2*glitch);
+    if(shift){const tmp=outerTrace.slice(row*COLS,(row+1)*COLS);
+      for(let c=0;c<COLS;c++)outerTrace[row*COLS+c]=tmp[((c-shift)%COLS+COLS)%COLS];}
+  }
+
+  /* ── outer walkers ── */
+  const nOut=Math.round(P.nw);
+  while(outerWalkers.length<nOut)outerWalkers.push({x:Math.random()*COLS,y:Math.random()*ROWS,vx:0,vy:0});
+  if(outerWalkers.length>nOut)outerWalkers.length=nOut;
+  outerWalkers.forEach(stepOW);
+
+  /* ── inner trace + walkers ── */
+  for(let i=0;i<innerTrace.length;i++)innerTrace[i]*=P.ifade;
+  const nIn=Math.round(P.niw);
+  while(innerWalkers.length<nIn)innerWalkers.push({x:Math.random()*GIC,y:Math.random()*GIR,vx:(Math.random()-.5)*.5,vy:(Math.random()-.5)*.5});
+  if(innerWalkers.length>nIn)innerWalkers.length=nIn;
+  innerWalkers.forEach(stepIW);
+
+  /* ── render to ImageData ── */
+  const icCols=GIC/IC;  // effective outer cols in inner buffer
+  const icRows=GIR/IR;
+  const igAlpha=P.igrid;
+  const showInner=P.niw>0||igAlpha>0.01;
+
+  for(let or=0;or<ROWS;or++){
+    const py0=Math.round(rBounds[or]),py1=Math.round(rBounds[or+1]);
+    if(py1<=py0)continue;
+    const cellH=py1-py0;
+    for(let oc=0;oc<COLS;oc++){
+      const px0=Math.round(cBounds[oc]),px1=Math.round(cBounds[oc+1]);
+      if(px1<=px0)continue;
+      const cellW=px1-px0;
+
+      const k=or*COLS+oc;
+      const nv=nArr[k],tr=outerTrace[k];
+      const dv=Math.min(255,Math.round(nv+(255-nv)*tr))|0;
+      fillGray(px0,py0,px1,py1,dv);
+
+      // inner grid — only when cells are large enough
+      if(showInner&&cellW>=2&&cellH>=2){
+        const dark=dv<128;
+        const ir2=oc%icCols, ir3=or%icRows;
+        const icw=cellW/IC,ich=cellH/IR;
+        const fr=dark?255:0,fg=dark?255:0,fb=dark?255:0;
+
+        if(icw>=1&&ich>=1){
+          for(let ir=0;ir<IR;ir++){
+            const gir=(ir3*IR+ir);
+            for(let ic=0;ic<IC;ic++){
+              const gic=ir2*IC+ic;
+              const iv=innerTrace[gir*GIC+gic];
+              if(iv>0.008){
+                const ix0=px0+(ic*cellW/IC)|0,ix1=px0+((ic+1)*cellW/IC)|0;
+                const iy0=py0+(ir*cellH/IR)|0,iy1=py0+((ir+1)*cellH/IR)|0;
+                blendRect(ix0,iy0,Math.max(ix0+1,ix1),Math.max(iy0+1,iy1),fr,fg,fb,Math.min(1,iv));
+              }
+            }
+          }
+        }
+
+        // inner grid lines
+        if(igAlpha>0.01&&cellW>=10){
+          const lr=dark?255:0,la=igAlpha;
+          for(let ic=1;ic<IC;ic++){const x=(px0+ic*cellW/IC)|0;vLine(x,py0,py1,lr,lr,lr,la);}
+          for(let ir=1;ir<IR;ir++){const y=(py0+ir*cellH/IR)|0;hLine(y,px0,px1,lr,lr,lr,la);}
+        }
+      }
+    }
+  }
+
+  ctx2d.putImageData(imgData,0,0);
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>

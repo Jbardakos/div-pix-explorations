@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Dither Grid</title>
+<style>
+  body { margin: 40px; background: #1a1a1a; display: flex; gap: 40px; flex-wrap: wrap; align-items: flex-start; }
+  .label { color: #555; font: 10px monospace; margin-top: 4px; }
+  #grid {
+    display: grid;
+    grid-template-columns: 15px 25px 20px;
+    grid-template-rows: 18px 22px 20px;
+    width: 60px;
+    height: 60px;
+    image-rendering: pixelated;
+  }
+  #grid canvas {
+    display: block;
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+  }
+  /* 8x zoomed version */
+  #grid-big {
+    display: grid;
+    grid-template-columns: calc(15px * 8) calc(25px * 8) calc(20px * 8);
+    grid-template-rows: calc(18px * 8) calc(22px * 8) calc(20px * 8);
+    width: calc(60px * 8);
+    height: calc(60px * 8);
+    image-rendering: pixelated;
+  }
+  #grid-big canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+  }
+</style>
+</head>
+<body>
+
+<div>
+  <div id="grid"></div>
+  <div class="label">60×60px</div>
+</div>
+
+<div>
+  <div id="grid-big"></div>
+  <div class="label">480×480px (8× zoom)</div>
+</div>
+
+<script>
+// ── Noise Utilities ──────────────────────────────────────────────────────────
+function lerp(a, b, t) { return a + (b - a) * t; }
+function smoothstep(t) { return t * t * (3 - 2 * t); }
+
+function hash2(x, y, s) {
+  let n = ((x * 1619) ^ (y * 31337) ^ (s * 1013)) >>> 0;
+  n = (n ^ (n >>> 14)) * 0x45d9f3b >>> 0;
+  n = (n ^ (n >>> 13)) * 0xc2b2ae35 >>> 0;
+  return (n >>> 0) / 0xffffffff;
+}
+
+function valueNoise(x, y, seed = 0) {
+  const ix = Math.floor(x), iy = Math.floor(y);
+  const fx = smoothstep(x - ix), fy = smoothstep(y - iy);
+  return lerp(
+    lerp(hash2(ix, iy, seed), hash2(ix+1, iy, seed), fx),
+    lerp(hash2(ix, iy+1, seed), hash2(ix+1, iy+1, seed), fx),
+    fy
+  );
+}
+
+function fbm(x, y, seed, octaves = 4) {
+  let v = 0, amp = 0.5, freq = 1, max = 0;
+  for (let i = 0; i < octaves; i++) {
+    v   += valueNoise(x * freq, y * freq, seed + i * 71) * amp;
+    max += amp; amp *= 0.5; freq *= 2;
+  }
+  return v / max;
+}
+
+// ── Bayer 4×4 Matrix ─────────────────────────────────────────────────────────
+const BAYER4 = [
+   0, 8, 2,10,
+  12, 4,14, 6,
+   3,11, 1, 9,
+  15, 7,13, 5
+];
+function bayer(x, y) { return BAYER4[((y & 3) << 2) | (x & 3)] / 16; }
+
+// ── Color helpers ────────────────────────────────────────────────────────────
+function hsl2rgb(h, s, l) {
+  const a = s * Math.min(l, 1 - l);
+  const f = n => { const k = (n + h / 30) % 12; return l - a * Math.max(-1, Math.min(k - 3, 9 - k, 1)); };
+  return [Math.round(f(0)*255), Math.round(f(8)*255), Math.round(f(4)*255)];
+}
+
+// ── Cell Drawers ─────────────────────────────────────────────────────────────
+// Each: (ctx, w, h)
+
+const drawers = [
+  // 0 [0,0] 15×18 — Bayer dithering on value noise, monochrome warm
+  (ctx, w, h) => {
+    const img = ctx.createImageData(w, h);
+    const d = img.data;
+    const SCALE = 0.22;
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      const v = valueNoise(x * SCALE, y * SCALE, 0);
+      const t = bayer(x, y);
+      const on = v > t;
+      const i = (y * w + x) * 4;
+      d[i]   = on ? 245 : 18;
+      d[i+1] = on ? 230 : 12;
+      d[i+2] = on ? 180 : 8;
+      d[i+3] = 255;
+    }
+    ctx.putImageData(img, 0, 0);
+  },
+
+  // 1 [0,1] 25×18 — Perlin FBM, cool blue-teal gradient
+  (ctx, w, h) => {
+    const img = ctx.createImageData(w, h);
+    const d = img.data;
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      const v = fbm(x * 0.18, y * 0.18, 7, 3);
+      const i = (y * w + x) * 4;
+      const rgb = hsl2rgb(180 + v * 60, 0.7, 0.15 + v * 0.55);
+      d[i] = rgb[0]; d[i+1] = rgb[1]; d[i+2] = rgb[2]; d[i+3] = 255;
+    }
+    ctx.putImageData(img, 0, 0);
+  },
+
+  // 2 [0,2] 20×18 — Pixelated color blocks (3px), noise-hued
+  (ctx, w, h) => {
+    const BS = 3;
+    for (let by = 0; by < Math.ceil(h/BS); by++) for (let bx = 0; bx < Math.ceil(w/BS); bx++) {
+      const v = valueNoise(bx * 0.7, by * 0.7, 42);
+      const rgb = hsl2rgb(300 + v * 120, 0.85, 0.25 + v * 0.4);
+      ctx.fillStyle = `rgb(${rgb[0]},${rgb[1]},${rgb[2]})`;
+      ctx.fillRect(bx * BS, by * BS, BS, BS);
+    }
+  },
+
+  // 3 [1,0] 15×22 — High-contrast binary noise (checkerboard dither)
+  (ctx, w, h) => {
+    const img = ctx.createImageData(w, h);
+    const d = img.data;
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      const v = fbm(x * 0.25, y * 0.25, 13, 4);
+      const on = v > 0.5 ? (((x + y) & 1) === 0 ? v > 0.52 : v > 0.48) : (((x + y) & 1) === 0 ? v > 0.38 : v > 0.42);
+      const i = (y * w + x) * 4;
+      d[i] = on ? 255 : 15; d[i+1] = on ? 255 : 15; d[i+2] = on ? 255 : 15; d[i+3] = 255;
+    }
+    ctx.putImageData(img, 0, 0);
+  },
+
+  // 4 [1,1] 25×22 — Ordered dithering multicolor (4 palette colors)
+  (ctx, w, h) => {
+    const PAL = [[20,180,140],[220,60,80],[240,180,30],[40,60,200]];
+    const img = ctx.createImageData(w, h);
+    const d = img.data;
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      const v  = fbm(x * 0.14, y * 0.14, 99, 4) * 3.99;
+      const ci = Math.floor(v), nci = (ci + 1) % 4;
+      const frac = v - ci;
+      const on = frac > bayer(x, y);
+      const c  = PAL[on ? nci : ci];
+      const i  = (y * w + x) * 4;
+      d[i]=c[0]; d[i+1]=c[1]; d[i+2]=c[2]; d[i+3]=255;
+    }
+    ctx.putImageData(img, 0, 0);
+  },
+
+  // 5 [1,2] 20×22 — FBM grayscale fine noise
+  (ctx, w, h) => {
+    const img = ctx.createImageData(w, h);
+    const d = img.data;
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      const v = fbm(x * 0.3, y * 0.3, 55, 5);
+      const g = Math.round(v * 255);
+      const i = (y * w + x) * 4;
+      d[i]=g; d[i+1]=g; d[i+2]=g; d[i+3]=255;
+    }
+    ctx.putImageData(img, 0, 0);
+  },
+
+  // 6 [2,0] 15×20 — Pixelated 2px blocks, warm earthy palette
+  (ctx, w, h) => {
+    const BS = 2;
+    const PAL = [[180,60,20],[220,120,40],[240,190,80],[120,80,30],[60,30,10]];
+    for (let by = 0; by < Math.ceil(h/BS); by++) for (let bx = 0; bx < Math.ceil(w/BS); bx++) {
+      const v = valueNoise(bx * 0.9, by * 0.9, 77);
+      const c = PAL[Math.floor(v * PAL.length)];
+      ctx.fillStyle = `rgb(${c[0]},${c[1]},${c[2]})`;
+      ctx.fillRect(bx * BS, by * BS, BS, BS);
+    }
+  },
+
+  // 7 [2,1] 25×20 — Noise + Bayer dither, green-cyan palette
+  (ctx, w, h) => {
+    const img = ctx.createImageData(w, h);
+    const d = img.data;
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      const v = fbm(x * 0.19, y * 0.19, 33, 3);
+      const t = bayer(x, y);
+      const on = v > t;
+      const i = (y * w + x) * 4;
+      const r = on ? hsl2rgb(140 + v * 60, 0.9, 0.6) : hsl2rgb(140 + v * 60, 0.9, 0.15);
+      d[i]=r[0]; d[i+1]=r[1]; d[i+2]=r[2]; d[i+3]=255;
+    }
+    ctx.putImageData(img, 0, 0);
+  },
+
+  // 8 [2,2] 20×20 — 4px pixelated blocks, cool purple-indigo
+  (ctx, w, h) => {
+    const BS = 4;
+    for (let by = 0; by < Math.ceil(h/BS); by++) for (let bx = 0; bx < Math.ceil(w/BS); bx++) {
+      const v = fbm(bx * 0.5, by * 0.5, 11, 2);
+      const rgb = hsl2rgb(240 + v * 80, 0.8, 0.2 + v * 0.5);
+      ctx.fillStyle = `rgb(${rgb[0]},${rgb[1]},${rgb[2]})`;
+      ctx.fillRect(bx * BS, by * BS, BS, BS);
+    }
+  }
+];
+
+// ── Cell definitions ─────────────────────────────────────────────────────────
+// [w, h] for each of the 9 cells (row-major: [0,0],[0,1],[0,2], [1,0]...)
+const CELLS = [
+  [15,18],[25,18],[20,18],
+  [15,22],[25,22],[20,22],
+  [15,20],[25,20],[20,20]
+];
+
+// ── Render both grids ─────────────────────────────────────────────────────────
+['grid','grid-big'].forEach(id => {
+  const container = document.getElementById(id);
+  container.innerHTML = '';
+  const big = id === 'grid-big';
+  CELLS.forEach(([w, h], idx) => {
+    const c = document.createElement('canvas');
+    c.width  = w;
+    c.height = h;
+    if (big) { c.style.width = (w * 8) + 'px'; c.style.height = (h * 8) + 'px'; }
+    container.appendChild(c);
+    drawers[idx](c.getContext('2d'), w, h);
+  });
+});
+</script>
+</body>
+</html>

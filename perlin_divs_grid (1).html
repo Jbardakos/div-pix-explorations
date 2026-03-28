@@ -1,0 +1,76 @@
+
+<div id="grid"></div>
+<script>
+(function(){
+const COLS=20,ROWS=20,N=COLS*ROWS;
+const g=document.getElementById('grid');
+g.style.cssText=`display:grid;grid-template-columns:repeat(${COLS},1fr);grid-template-rows:repeat(${ROWS},1fr);width:min(500px,82vw);aspect-ratio:1;margin:2rem auto;overflow:hidden;`;
+
+const divs=Array.from({length:N},()=>{
+  const d=document.createElement('div');
+  g.appendChild(d);
+  return d;
+});
+
+// precompute 256 hex grey strings
+const HEX=Array.from({length:256},(_,i)=>{const h=i.toString(16).padStart(2,'0');return`#${h}${h}${h}`;});
+
+// value noise on 256x256 grid
+function s3(t){return t*t*(3-2*t)}
+function lrp(a,b,t){return a+t*(b-a)}
+const R=256,RM=R-1;
+const V=new Float32Array(R*R);
+for(let i=0;i<V.length;i++)V[i]=Math.random()*2-1;
+function vn(x,y){
+  const xi=((Math.floor(x)%R)+R)&RM,yi=((Math.floor(y)%R)+R)&RM;
+  const xf=x-Math.floor(x),yf=y-Math.floor(y);
+  const u=s3(xf),v=s3(yf);
+  const xi1=(xi+1)&RM,yi1=(yi+1)&RM;
+  return lrp(lrp(V[yi*R+xi],V[yi*R+xi1],u),lrp(V[yi1*R+xi],V[yi1*R+xi1],u),v);
+}
+// fbm — 4 octaves for richness
+function fbm(x,y){
+  return vn(x,y)*.5+vn(x*2.1,y*2.1)*.25+vn(x*4.3,y*4.3)*.125+vn(x*8.7,y*8.7)*.0625;
+}
+
+// per-track sine waves — each col/row has 2 stacked waves, varied freq+amp
+const cW=Array.from({length:COLS},()=>({
+  base:1,
+  w:[{ph:Math.random()*Math.PI*2,fr:.00007+Math.random()*.0012,am:.15+Math.random()*.45},
+     {ph:Math.random()*Math.PI*2,fr:.00004+Math.random()*.0006,am:.1+Math.random()*.25}]
+}));
+const rW=Array.from({length:ROWS},()=>({
+  base:1,
+  w:[{ph:Math.random()*Math.PI*2,fr:.00007+Math.random()*.0012,am:.15+Math.random()*.45},
+     {ph:Math.random()*Math.PI*2,fr:.00004+Math.random()*.0006,am:.1+Math.random()*.25}]
+}));
+
+// noise drift velocity — slow crawl across the field
+const DX=.000055,DY=.000042;
+
+function loop(t){
+  // --- grid track sizes ---
+  const cR=cW.map(c=>Math.max(.05,c.base+c.w[0].am*Math.sin(c.w[0].ph+c.w[0].fr*t)+c.w[1].am*Math.sin(c.w[1].ph+c.w[1].fr*t)));
+  const rR=rW.map(r=>Math.max(.05,r.base+r.w[0].am*Math.sin(r.w[0].ph+r.w[0].fr*t)+r.w[1].am*Math.sin(r.w[1].ph+r.w[1].fr*t)));
+  const cS=cR.reduce((a,b)=>a+b),rS=rR.reduce((a,b)=>a+b);
+  g.style.gridTemplateColumns=cR.map(v=>(v/cS*100).toFixed(2)+'%').join(' ');
+  g.style.gridTemplateRows=rR.map(v=>(v/rS*100).toFixed(2)+'%').join(' ');
+
+  // --- noise colors ---
+  const ox=t*DX, oy=t*DY;
+  // scale 3.5 = ~3-4 blobs across grid
+  const sc=3.5;
+  let k=0;
+  for(let r=0;r<ROWS;r++){
+    const ny=r/ROWS*sc+oy;
+    for(let c=0;c<COLS;c++){
+      const n=fbm(c/COLS*sc+ox,ny); // -~0.94 .. ~0.94
+      const v=Math.min(255,Math.max(0,Math.round((n*.53+.5)*240)));
+      divs[k++].style.background=HEX[v];
+    }
+  }
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+})();
+</script>

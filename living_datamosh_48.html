@@ -1,0 +1,352 @@
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+#W{max-width:520px;margin:1rem auto;font-family:var(--font-sans,sans-serif);}
+#cW{position:relative;width:min(500px,90vw);aspect-ratio:1;background:#060606;margin:0 auto;cursor:pointer;overflow:hidden;border-radius:3px;}
+#c{display:block;width:100%;height:100%;}
+#hint{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:rgba(255,255,255,.28);pointer-events:none;transition:opacity .6s;}
+.sec{padding:.45rem 0 .2rem;border-top:.5px solid var(--color-border-tertiary);margin-top:.45rem;}
+.sec h4{font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--color-text-tertiary);margin-bottom:.35rem;}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:3px 12px;}
+.row{display:flex;align-items:center;gap:6px;}
+.row label{font-size:9px;text-transform:uppercase;letter-spacing:.05em;color:var(--color-text-secondary);min-width:58px;}
+.row input{flex:1;accent-color:var(--color-text-primary);height:3px;}
+.row span{font-size:9px;color:var(--color-text-primary);min-width:30px;text-align:right;font-variant-numeric:tabular-nums;}
+.togs{display:flex;gap:5px;flex-wrap:wrap;margin-top:.4rem;}
+.tog{font-size:9px;padding:2px 9px;border:.5px solid var(--color-border-secondary);border-radius:99px;cursor:pointer;letter-spacing:.06em;text-transform:uppercase;color:var(--color-text-secondary);user-select:none;}
+.tog.on{background:var(--color-text-primary);color:var(--color-background-primary);border-color:var(--color-text-primary);}
+</style>
+
+<div id="W">
+  <div id="cW">
+    <canvas id="c"></canvas>
+    <div id="hint">drop image · click to seed</div>
+    <input type="file" id="fi" accept="image/*" style="display:none">
+  </div>
+  <div class="sec"><h4>World</h4><div class="grid2">
+    <div class="row"><label>Speed</label><input type="range" id="s_spd" min=".05" max="4" step=".05" value="1"><span id="v_spd">1.0×</span></div>
+    <div class="row"><label>Density</label><input type="range" id="s_den" min=".2" max="3" step=".1" value="1"><span id="v_den">1.0</span></div>
+    <div class="row"><label>Decay</label><input type="range" id="s_dec" min=".980" max=".9998" step=".0002" value=".998"><span id="v_dec">.9980</span></div>
+    <div class="row"><label>Deposit</label><input type="range" id="s_dep" min=".002" max=".12" step=".002" value=".022"><span id="v_dep">.022</span></div>
+  </div></div>
+  <div class="sec"><h4>Particles</h4><div class="grid2">
+    <div class="row"><label>Count</label><input type="range" id="s_pc" min="50" max="1200" step="50" value="500"><span id="v_pc">500</span></div>
+    <div class="row"><label>Life</label><input type="range" id="s_pl" min=".002" max=".03" step=".001" value=".008"><span id="v_pl">.008</span></div>
+    <div class="row"><label>Flow</label><input type="range" id="s_pf" min=".05" max="1" step=".05" value=".3"><span id="v_pf">.30</span></div>
+    <div class="row"><label>Size</label><input type="range" id="s_ps" min="1" max="6" step=".5" value="2"><span id="v_ps">2</span></div>
+  </div></div>
+  <div class="sec"><h4>Growth</h4><div class="grid2">
+    <div class="row"><label>Orgs</label><input type="range" id="s_go" min="1" max="16" step="1" value="5"><span id="v_go">5</span></div>
+    <div class="row"><label>Branch</label><input type="range" id="s_gb" min=".002" max=".06" step=".002" value=".018"><span id="v_gb">.018</span></div>
+    <div class="row"><label>Step</label><input type="range" id="s_gs" min=".5" max="5" step=".25" value="2"><span id="v_gs">2.0</span></div>
+    <div class="row"><label>Memory</label><input type="range" id="s_gm" min="20" max="300" step="10" value="120"><span id="v_gm">120</span></div>
+  </div></div>
+  <div class="sec"><h4>Creatures</h4><div class="grid2">
+    <div class="row"><label>Pop cap</label><input type="range" id="s_cc" min="4" max="60" step="2" value="14"><span id="v_cc">14</span></div>
+    <div class="row"><label>Mutation</label><input type="range" id="s_cm" min="1" max="60" step="1" value="18"><span id="v_cm">18</span></div>
+    <div class="row"><label>Turn</label><input type="range" id="s_ct" min=".01" max=".3" step=".01" value=".09"><span id="v_ct">.09</span></div>
+    <div class="row"><label>Trail</label><input type="range" id="s_ctr" min="5" max="60" step="5" value="25"><span id="v_ctr">25</span></div>
+  </div></div>
+  <div class="sec"><h4>Layers</h4>
+    <div class="togs">
+      <span class="tog on" id="t_par">Particles</span>
+      <span class="tog on" id="t_grw">Growth</span>
+      <span class="tog on" id="t_cre">Creatures</span>
+      <span class="tog" id="t_rgb">RGB split</span>
+      <span class="tog" id="t_inv">Invert</span>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+const G=48,SZ=400,CS=SZ/G;
+const cv=document.getElementById('c');
+cv.width=SZ;cv.height=SZ;
+const ctx=cv.getContext('2d');
+const off=document.createElement('canvas');off.width=G;off.height=G;
+const octx=off.getContext('2d');
+const idat=octx.createImageData(G,G);
+
+let SPEED=1,DENSITY=1,DECAY=.998,DEPOSIT=.022;
+let P_MAX=500,P_LIFE=.008,P_FLOW=.3,P_SZ=2;
+let G_MAX=5,G_BRANCH=.018,G_STEP=2,G_MEM=120;
+let C_CAP=14,C_MUT=18,C_TURN=.09,C_TRAIL=25;
+let L_PAR=true,L_GRW=true,L_CRE=true,L_RGB=false,L_INV=false;
+
+const pix=new Float32Array(G*G*3);
+const src=new Float32Array(G*G*3);
+for(let i=0;i<G*G;i++){
+  const v=50+Math.random()*150;
+  src[i*3]=src[i*3+1]=src[i*3+2]=v;
+  pix[i*3]=pix[i*3+1]=pix[i*3+2]=v;
+}
+
+function pGet(gx,gy){
+  const x=Math.max(0,Math.min(G-1,gx|0)),y=Math.max(0,Math.min(G-1,gy|0));
+  const i=(y*G+x)*3;return[pix[i],pix[i+1],pix[i+2]];
+}
+function pSet(gx,gy,r,g,b,a){
+  const x=Math.max(0,Math.min(G-1,gx|0)),y=Math.max(0,Math.min(G-1,gy|0));
+  const i=(y*G+x)*3,ia=1-a;
+  pix[i]=pix[i]*ia+r*a;pix[i+1]=pix[i+1]*ia+g*a;pix[i+2]=pix[i+2]*ia+b*a;
+}
+
+const NR=256;
+const NV=new Float32Array(NR*NR);
+for(let i=0;i<NV.length;i++)NV[i]=Math.random()*2-1;
+function s3(t){return t*t*(3-2*t);}
+function lrp(a,b,t){return a+t*(b-a);}
+function vn(x,y){
+  const xi=((x|0)%NR+NR)%NR,yi=((y|0)%NR+NR)%NR;
+  const xf=x-(x|0),yf=y-(y|0),xi1=(xi+1)%NR,yi1=(yi+1)%NR;
+  return lrp(lrp(NV[yi*NR+xi],NV[yi*NR+xi1],s3(xf)),lrp(NV[yi1*NR+xi],NV[yi1*NR+xi1],s3(xf)),s3(yf));
+}
+function fbm(x,y){return vn(x,y)*.5+vn(x*2.1,y*2.1)*.25+vn(x*4.3,y*4.3)*.125;}
+function flow(x,y,t){return fbm(x/130+t*.00005,y/130)*Math.PI*4;}
+
+// === PARTICLES ===
+const parts=[];
+function mkP(){
+  const gx=Math.random()*G|0,gy=Math.random()*G|0;
+  const[r,g,b]=pGet(gx,gy);
+  const a=Math.random()*Math.PI*2,sp=.8+Math.random()*2;
+  return{x:(gx+Math.random())*CS,y:(gy+Math.random())*CS,
+    vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,r,g,b,life:1};
+}
+for(let i=0;i<300;i++)parts.push(mkP());
+
+function tickParticles(t){
+  while(parts.length<P_MAX*DENSITY&&Math.random()<.6)parts.push(mkP());
+  let i=parts.length;
+  while(i--){
+    const p=parts[i];
+    const fa=flow(p.x,p.y,t);
+    p.vx=p.vx*(1-P_FLOW*.14)+Math.cos(fa)*P_FLOW*.25;
+    p.vy=p.vy*(1-P_FLOW*.14)+Math.sin(fa)*P_FLOW*.25;
+    p.x=(p.x+p.vx*SPEED+SZ)%SZ;p.y=(p.y+p.vy*SPEED+SZ)%SZ;
+    p.life-=P_LIFE*SPEED;
+    pSet(p.x/CS,p.y/CS,p.r,p.g,p.b,DEPOSIT*.35);
+    if(p.life<=0){parts[i]=parts[parts.length-1];parts.pop();continue;}
+    ctx.fillStyle=`rgba(${p.r|0},${p.g|0},${p.b|0},${(p.life*.72).toFixed(3)})`;
+    ctx.fillRect(p.x|0,p.y|0,P_SZ|0,P_SZ|0);
+  }
+}
+
+// === GROWTH ORGANISMS ===
+class Org{
+  constructor(){
+    const gx=Math.random()*G|0,gy=Math.random()*G|0;
+    const[r,g,b]=pGet(gx,gy);
+    this.segs=[];
+    this.tips=[{x:(gx+.5)*CS,y:(gy+.5)*CS,ang:Math.random()*Math.PI*2,r,g,b,e:1,age:0}];
+    this.dead=false;
+  }
+  tick(t){
+    const nt=[];
+    for(const tp of this.tips){
+      tp.age++;tp.e-=.0022;
+      if(tp.e<=0||tp.age>700)continue;
+      const fa=flow(tp.x,tp.y,t);
+      tp.ang=tp.ang*.78+fa*.22+(Math.random()-.5)*.28;
+      const nx=tp.x+Math.cos(tp.ang)*G_STEP;
+      const ny=tp.y+Math.sin(tp.ang)*G_STEP;
+      if(nx<0||nx>=SZ||ny<0||ny>=SZ)continue;
+      const[pr,pg,pb]=pGet(nx/CS,ny/CS);
+      this.segs.push({x1:tp.x,y1:tp.y,x2:nx,y2:ny,r:tp.r,g:tp.g,b:tp.b,a:tp.e*.8});
+      pSet(nx/CS,ny/CS,tp.r,tp.g,tp.b,DEPOSIT*.9);
+      tp.r=tp.r*.92+pr*.08;tp.g=tp.g*.92+pg*.08;tp.b=tp.b*.92+pb*.08;
+      tp.x=nx;tp.y=ny;nt.push(tp);
+      if(Math.random()<G_BRANCH&&nt.length<14)
+        nt.push({x:nx,y:ny,ang:tp.ang+(Math.random()-.5)*Math.PI*.85,r:tp.r,g:tp.g,b:tp.b,e:tp.e*.58,age:0});
+    }
+    this.tips=nt;
+    for(const s of this.segs)s.a*=.9972;
+    if(this.segs.length>G_MEM)this.segs.splice(0,this.segs.length-G_MEM);
+    this.segs=this.segs.filter(s=>s.a>.007);
+    this.dead=this.tips.length===0&&this.segs.length===0;
+  }
+  draw(){
+    ctx.lineWidth=.75;
+    for(const s of this.segs){
+      ctx.strokeStyle=`rgba(${s.r|0},${s.g|0},${s.b|0},${s.a.toFixed(3)})`;
+      ctx.beginPath();ctx.moveTo(s.x1,s.y1);ctx.lineTo(s.x2,s.y2);ctx.stroke();
+    }
+  }
+}
+let orgs=Array.from({length:5},()=>new Org());
+
+// === CREATURES ===
+class Creature{
+  constructor(x,y,r,g,b,e){
+    this.x=x!=null?x:Math.random()*SZ;
+    this.y=y!=null?y:Math.random()*SZ;
+    const gx=Math.max(0,Math.min(G-1,this.x/CS|0));
+    const gy=Math.max(0,Math.min(G-1,this.y/CS|0));
+    const[pr,pg,pb]=pGet(gx,gy);
+    this.r=r!=null?r:pr;this.g=g!=null?g:pg;this.b=b!=null?b:pb;
+    this.ang=Math.random()*Math.PI*2;
+    this.sp=.45+Math.random()*.8;
+    this.e=e!=null?e:.4+Math.random()*.55;
+    this.age=0;
+    this.trail=[];
+    this.sz=2+Math.random()*3;
+    this.phase=Math.random()*Math.PI*2;
+  }
+  tick(t){
+    this.age++;this.e-=.0005;
+    const fa=flow(this.x,this.y,t);
+    this.ang=this.ang*(1-C_TURN)+fa*C_TURN+(Math.random()-.5)*.12;
+    this.x=(this.x+Math.cos(this.ang)*this.sp*SPEED+SZ)%SZ;
+    this.y=(this.y+Math.sin(this.ang)*this.sp*SPEED+SZ)%SZ;
+    const gx=Math.max(0,Math.min(G-1,this.x/CS|0));
+    const gy=Math.max(0,Math.min(G-1,this.y/CS|0));
+    const[pr,pg,pb]=pGet(gx,gy);
+    this.e+=((pr+pg+pb)/765)*.0015;
+    pSet(gx,gy,this.r,this.g,this.b,DEPOSIT*1.1);
+    this.trail.push({x:this.x,y:this.y});
+    if(this.trail.length>C_TRAIL)this.trail.shift();
+  }
+  spawn(){
+    if(this.e>.84&&Math.random()<.003*DENSITY&&this.age>80){
+      this.e*=.52;const m=C_MUT;
+      return new Creature(
+        this.x+(Math.random()-.5)*14,this.y+(Math.random()-.5)*14,
+        Math.min(255,Math.max(0,this.r+(Math.random()-.5)*m)),
+        Math.min(255,Math.max(0,this.g+(Math.random()-.5)*m)),
+        Math.min(255,Math.max(0,this.b+(Math.random()-.5)*m)),.38);
+    }return null;
+  }
+  get dead(){return this.e<=0||this.age>7000;}
+  draw(t){
+    if(this.trail.length>2){
+      ctx.save();ctx.globalAlpha=.2;
+      ctx.strokeStyle=`rgb(${this.r|0},${this.g|0},${this.b|0})`;
+      ctx.lineWidth=1.5;ctx.beginPath();
+      ctx.moveTo(this.trail[0].x,this.trail[0].y);
+      for(const p of this.trail)ctx.lineTo(p.x,p.y);
+      ctx.stroke();ctx.restore();
+    }
+    const pulse=1+Math.sin(t*.004+this.phase)*.2;
+    const s=this.sz*pulse*(1+this.e*.4);
+    ctx.fillStyle=`rgba(${this.r|0},${this.g|0},${this.b|0},${Math.min(1,this.e*2).toFixed(3)})`;
+    ctx.fillRect((this.x-s*.5)|0,(this.y-s*.5)|0,s|0,s|0);
+    ctx.fillStyle=`rgba(255,255,255,${Math.min(.95,this.e*1.6).toFixed(3)})`;
+    ctx.fillRect((this.x-1)|0,(this.y-1)|0,2,2);
+  }
+}
+let creatures=Array.from({length:C_CAP},()=>new Creature());
+
+// === IMAGE LOAD ===
+const cW=document.getElementById('cW');
+const fi=document.getElementById('fi');
+const hint=document.getElementById('hint');
+cW.onclick=()=>fi.click();
+cW.ondragover=e=>e.preventDefault();
+cW.ondrop=e=>{e.preventDefault();loadF(e.dataTransfer.files[0]);};
+fi.onchange=()=>loadF(fi.files[0]);
+function loadF(f){
+  if(!f)return;
+  const url=URL.createObjectURL(f);
+  const img=new Image();
+  img.onload=()=>{
+    const tc=document.createElement('canvas');tc.width=G;tc.height=G;
+    const tctx=tc.getContext('2d');tctx.drawImage(img,0,0,G,G);
+    const d=tctx.getImageData(0,0,G,G).data;
+    for(let i=0;i<G*G;i++){
+      src[i*3]=d[i*4];src[i*3+1]=d[i*4+1];src[i*3+2]=d[i*4+2];
+      pix[i*3]=d[i*4];pix[i*3+1]=d[i*4+1];pix[i*3+2]=d[i*4+2];
+    }
+    parts.length=0;
+    orgs=Array.from({length:G_MAX},()=>new Org());
+    creatures=Array.from({length:C_CAP},()=>new Creature());
+    hint.style.opacity='0';
+    URL.revokeObjectURL(url);
+  };
+  img.src=url;
+}
+
+// === CONTROLS ===
+function sl(sid,vid,fmt,set){
+  const el=document.getElementById(sid),vl=document.getElementById(vid);
+  vl.textContent=fmt(parseFloat(el.value));
+  el.oninput=()=>{const v=parseFloat(el.value);set(v);vl.textContent=fmt(v);};
+}
+sl('s_spd','v_spd',v=>v.toFixed(1)+'×',v=>SPEED=v);
+sl('s_den','v_den',v=>v.toFixed(1),v=>DENSITY=v);
+sl('s_dec','v_dec',v=>v.toFixed(4),v=>DECAY=v);
+sl('s_dep','v_dep',v=>v.toFixed(3),v=>DEPOSIT=v);
+sl('s_pc','v_pc',v=>v|0,v=>P_MAX=v);
+sl('s_pl','v_pl',v=>v.toFixed(3),v=>P_LIFE=v);
+sl('s_pf','v_pf',v=>v.toFixed(2),v=>P_FLOW=v);
+sl('s_ps','v_ps',v=>v,v=>P_SZ=v);
+sl('s_go','v_go',v=>v|0,v=>G_MAX=v);
+sl('s_gb','v_gb',v=>v.toFixed(3),v=>G_BRANCH=v);
+sl('s_gs','v_gs',v=>v.toFixed(1),v=>G_STEP=v);
+sl('s_gm','v_gm',v=>v|0,v=>G_MEM=v);
+sl('s_cc','v_cc',v=>v|0,v=>C_CAP=v);
+sl('s_cm','v_cm',v=>v|0,v=>C_MUT=v);
+sl('s_ct','v_ct',v=>v.toFixed(2),v=>C_TURN=v);
+sl('s_ctr','v_ctr',v=>v|0,v=>C_TRAIL=v);
+
+function tog(id,get,set){
+  const el=document.getElementById(id);
+  el.onclick=()=>{set(!get());el.classList.toggle('on',get());};
+}
+tog('t_par',()=>L_PAR,v=>L_PAR=v);
+tog('t_grw',()=>L_GRW,v=>L_GRW=v);
+tog('t_cre',()=>L_CRE,v=>L_CRE=v);
+tog('t_rgb',()=>L_RGB,v=>L_RGB=v);
+tog('t_inv',()=>L_INV,v=>L_INV=v);
+
+// === MAIN LOOP ===
+function frame(t){
+  for(let i=0;i<G*G*3;i++)pix[i]=pix[i]*DECAY+src[i]*(1-DECAY);
+
+  const dd=idat.data;
+  if(L_RGB){
+    for(let y=0;y<G;y++)for(let x=0;x<G;x++){
+      const i=(y*G+x)*3,pi=(y*G+x)*4;
+      const lx=Math.max(0,x-1),rx=Math.min(G-1,x+1);
+      dd[pi]=pix[(y*G+lx)*3]|0;
+      dd[pi+1]=pix[i+1]|0;
+      dd[pi+2]=pix[(y*G+rx)*3+2]|0;
+      dd[pi+3]=255;
+    }
+  }else{
+    for(let i=0;i<G*G;i++){
+      let r=pix[i*3]|0,g=pix[i*3+1]|0,b=pix[i*3+2]|0;
+      if(L_INV){r=255-r;g=255-g;b=255-b;}
+      dd[i*4]=r;dd[i*4+1]=g;dd[i*4+2]=b;dd[i*4+3]=255;
+    }
+  }
+  octx.putImageData(idat,0,0);
+  ctx.imageSmoothingEnabled=false;
+  ctx.drawImage(off,0,0,G,G,0,0,SZ,SZ);
+
+  if(L_PAR)tickParticles(t);
+
+  if(L_GRW){
+    while(orgs.length<G_MAX*DENSITY&&Math.random()<.012)orgs.push(new Org());
+    for(const o of orgs){o.tick(t);o.draw();}
+    orgs=orgs.filter(o=>!o.dead);
+  }
+
+  if(L_CRE){
+    const nc=[];
+    for(const c of creatures){
+      c.tick(t);c.draw(t);
+      if(!c.dead){
+        nc.push(c);
+        if(nc.length<C_CAP*DENSITY){const b=c.spawn();if(b)nc.push(b);}
+      }
+    }
+    creatures=nc;
+    if(creatures.length<Math.max(4,C_CAP*.4))creatures.push(new Creature());
+  }
+
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+})();
+</script>

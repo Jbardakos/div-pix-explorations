@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ASCII PERLIN — CONTROLS</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #000;
+  --fg: #e8e8e8;
+  --accent: #00ff88;
+  --dim: #333;
+  --panel: #0a0a0a;
+  --border: #1a1a1a;
+  --label: #888;
+  --val: #00ff88;
+  --mono: 'Share Tech Mono', 'Courier New', monospace;
+}
+
+html, body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--mono);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 1.2rem .8rem 2rem;
+  gap: 0;
+}
+
+/* ── HEADER ── */
+header {
+  width: min(700px, 98vw);
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding-bottom: .5rem;
+  border-bottom: 1px solid var(--dim);
+  margin-bottom: .8rem;
+}
+header h1 {
+  font-size: .72rem;
+  letter-spacing: .18em;
+  color: var(--accent);
+  text-transform: uppercase;
+}
+header span {
+  font-size: .6rem;
+  color: var(--label);
+  letter-spacing: .1em;
+}
+
+/* ── GRID ── */
+#grid-wrap {
+  width: min(480px, 90vw);
+  aspect-ratio: 1;
+}
+#grid {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  overflow: hidden;
+}
+#grid > div {
+  background: #000;
+  color: #fff;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  container-type: size;
+}
+#grid > div > span {
+  font-family: var(--mono);
+  font-weight: 700;
+  line-height: 1;
+  user-select: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100cqw;
+  height: 100cqh;
+  transition: color 0s;
+}
+
+/* ── CONTROLS ── */
+#controls {
+  width: min(700px, 98vw);
+  margin-top: .9rem;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  padding: .9rem 1rem 1rem;
+}
+
+.ctrl-header {
+  font-size: .58rem;
+  letter-spacing: .2em;
+  color: var(--label);
+  text-transform: uppercase;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: .4rem;
+  margin-bottom: .8rem;
+}
+
+.ctrl-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: .55rem .8rem;
+}
+
+.ctrl-row {
+  display: flex;
+  flex-direction: column;
+  gap: .18rem;
+}
+
+.ctrl-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.ctrl-label {
+  font-size: .58rem;
+  letter-spacing: .12em;
+  color: var(--label);
+  text-transform: uppercase;
+}
+
+.ctrl-value {
+  font-size: .65rem;
+  color: var(--val);
+  min-width: 2.8rem;
+  text-align: right;
+}
+
+input[type=range] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 3px;
+  background: var(--dim);
+  outline: none;
+  cursor: pointer;
+}
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 11px;
+  height: 11px;
+  background: var(--accent);
+  cursor: pointer;
+  border: none;
+  border-radius: 0;
+  box-shadow: 0 0 6px var(--accent);
+}
+input[type=range]::-moz-range-thumb {
+  width: 11px;
+  height: 11px;
+  background: var(--accent);
+  cursor: pointer;
+  border: none;
+  border-radius: 0;
+  box-shadow: 0 0 6px var(--accent);
+}
+input[type=range]:focus::-webkit-slider-thumb {
+  box-shadow: 0 0 10px var(--accent), 0 0 2px #fff;
+}
+
+/* select for charset */
+.ctrl-select {
+  background: #000;
+  color: var(--accent);
+  border: 1px solid var(--dim);
+  font-family: var(--mono);
+  font-size: .62rem;
+  padding: .15rem .3rem;
+  cursor: pointer;
+  outline: none;
+  width: 100%;
+}
+.ctrl-select option { background: #000; }
+
+/* reset btn */
+#reset-btn {
+  grid-column: 1 / -1;
+  margin-top: .3rem;
+  background: none;
+  border: 1px solid var(--dim);
+  color: var(--label);
+  font-family: var(--mono);
+  font-size: .58rem;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+  padding: .35rem 1rem;
+  cursor: pointer;
+  transition: border-color .15s, color .15s;
+}
+#reset-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* section labels */
+.ctrl-section {
+  grid-column: 1 / -1;
+  font-size: .52rem;
+  letter-spacing: .18em;
+  color: #444;
+  text-transform: uppercase;
+  border-top: 1px solid var(--border);
+  padding-top: .5rem;
+  margin-top: .1rem;
+}
+
+@media (max-width: 500px) {
+  .ctrl-grid { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>ASCII · PERLIN · FIELD</h1>
+  <span id="fps-counter">-- fps</span>
+</header>
+
+<div id="grid-wrap"><div id="grid"></div></div>
+
+<div id="controls">
+  <div class="ctrl-header">// PARAMETERS</div>
+  <div class="ctrl-grid" id="ctrl-grid">
+
+    <div class="ctrl-section">MOTION</div>
+
+    <!-- drift speed -->
+    <div class="ctrl-row">
+      <div class="ctrl-top">
+        <span class="ctrl-label">DRIFT SPEED</span>
+        <span class="ctrl-value" id="val-speed">1.00</span>
+      </div>
+      <input type="range" id="sl-speed" min="0" max="5" step="0.05" value="1">
+    </div>
+
+    <!-- wave amplitude -->
+    <div class="ctrl-row">
+      <div class="ctrl-top">
+        <span class="ctrl-label">WAVE AMP</span>
+        <span class="ctrl-value" id="val-amp">1.00</span>
+      </div>
+      <input type="range" id="sl-amp" min="0" max="3" step="0.05" value="1">
+    </div>
+
+    <!-- wave frequency -->
+    <div class="ctrl-row">
+      <div class="ctrl-top">
+        <span class="ctrl-label">WAVE FREQ</span>
+        <span class="ctrl-value" id="val-freq">1.00</span>
+      </div>
+      <input type="range" id="sl-freq" min="0.05" max="5" step="0.05" value="1">
+    </div>
+
+    <!-- wave complexity -->
+    <div class="ctrl-row">
+      <div class="ctrl-top">
+        <span class="ctrl-label">WAVE STACK</span>
+        <span class="ctrl-value" id="val-stack">2</span>
+      </div>
+      <input type="range" id="sl-stack" min="1" max="4" step="1" value="2">
+    </div>
+
+    <div class="ctrl-section">NOISE FIELD</div>
+
+    <!-- noise scale -->
+    <div class="ctrl-row">
+      <div class="ctrl-top">
+        <span class="ctrl-label">NOISE SCALE</span>
+        <span class="ctrl-value" id="val-scale">3.50</span>
+      </div>
+      <input type="range" id="sl-scale" min="0.5" max="10" step="0.1" value="3.5">
+    </div>
+
+    <!-- fbm octaves -->
+    <div class="ctrl-row">
+      <div class="ctrl-top">
+        <span class="ctrl-label">FBM OCTAVES</span>
+        <span class="ctrl-value" id="val-oct">4</span>
+      </div>
+      <input type="range" id="sl-oct" min="1" max="6" step="1" value="4">
+    </div>
+
+    <!-- contrast / gamma -->
+    <div class="ctrl-row">
+      <div class="ctrl-top">
+        <span class="ctrl-label">CONTRAST</span>
+        <span class="ctrl-value" id="val-contrast">1.00</span>
+      </div>
+      <input type="range" id="sl-contrast" min="0.2" max="4" step="0.05" value="1">
+    </div>
+
+    <!-- bias -->
+    <div class="ctrl-row">
+      <div class="ctrl-top">
+        <span class="ctrl-label">DENSITY BIAS</span>
+        <span class="ctrl-value" id="val-bias">0.50</span>
+      </div>
+      <input type="range" id="sl-bias" min="0" max="1" step="0.01" value="0.5">
+    </div>
+
+    <div class="ctrl-section">CHARACTERS</div>
+
+    <!-- char set -->
+    <div class="ctrl-row">
+      <div class="ctrl-top">
+        <span class="ctrl-label">CHAR SET</span>
+      </div>
+      <select class="ctrl-select" id="sl-charset">
+        <option value="0">DENSITY  · : ; + # █</option>
+        <option value="1">BLOCKS  ░ ▒ ▓ █</option>
+        <option value="2">BINARY  0 1</option>
+        <option value="3">HEX  0-F</option>
+        <option value="4">SYMBOLS  @ # $ % &</option>
+        <option value="5">MATRIX  ｦ ｱ ｳ katakana</option>
+        <option value="6">BRAILLE  ⠂⠆⠇⠿</option>
+        <option value="7">ALL MIX</option>
+      </select>
+    </div>
+
+    <!-- char size -->
+    <div class="ctrl-row">
+      <div class="ctrl-top">
+        <span class="ctrl-label">CHAR SIZE</span>
+        <span class="ctrl-value" id="val-charsize">100</span>
+      </div>
+      <input type="range" id="sl-charsize" min="40" max="120" step="2" value="100">
+    </div>
+
+    <!-- glitch density -->
+    <div class="ctrl-row">
+      <div class="ctrl-top">
+        <span class="ctrl-label">GLITCH RATE</span>
+        <span class="ctrl-value" id="val-glitch">4</span>
+      </div>
+      <input type="range" id="sl-glitch" min="0" max="60" step="1" value="4">
+    </div>
+
+    <!-- glitch refresh -->
+    <div class="ctrl-row">
+      <div class="ctrl-top">
+        <span class="ctrl-label">GLITCH PULSE</span>
+        <span class="ctrl-value" id="val-gpulse">18</span>
+      </div>
+      <input type="range" id="sl-gpulse" min="1" max="90" step="1" value="18">
+    </div>
+
+    <div class="ctrl-section">GRID</div>
+
+    <!-- grid size -->
+    <div class="ctrl-row">
+      <div class="ctrl-top">
+        <span class="ctrl-label">GRID COLS</span>
+        <span class="ctrl-value" id="val-cols">20</span>
+      </div>
+      <input type="range" id="sl-cols" min="4" max="48" step="2" value="20">
+    </div>
+
+    <div class="ctrl-row">
+      <div class="ctrl-top">
+        <span class="ctrl-label">GRID ROWS</span>
+        <span class="ctrl-value" id="val-rows">20</span>
+      </div>
+      <input type="range" id="sl-rows" min="4" max="48" step="2" value="20">
+    </div>
+
+    <button id="reset-btn">[ RESET DEFAULTS ]</button>
+  </div>
+</div>
+
+<script>
+(function(){
+
+// ── CHARSETS ──────────────────────────────────────────────
+const CHARSETS = [
+  ' ·,:;i!+l*%$#▒▓█',                                       // 0 density
+  ' ░░▒▒▓▓██',                                              // 1 blocks
+  '01',                                                      // 2 binary
+  '0123456789ABCDEF',                                        // 3 hex
+  ' .!#$%&@*+=-~^?|\\/<>[]{}',                              // 4 symbols
+  'ｦｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎﾏﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛﾜﾝ',  // 5 katakana
+  ' ⠁⠂⠃⠄⠅⠆⠇⠈⠉⠊⠋⠌⠍⠎⠏⠐⠑⠒⠓⠔⠕⠖⠗⠘⠙⠚⠛⠜⠝⠞⠟⠿',            // 6 braille
+  ' ·:!#█░▒▓01@$%&ｦｱｳ⠃⠇⠿?|+=-~^<>[]{}*',                 // 7 all mix
+];
+const GLITCH_CHARS = '!@#$%^&*?/<>|\\~=+-_[]{}░▒▓';
+
+// ── PARAMS (live) ─────────────────────────────────────────
+const P = {
+  speed: 1, amp: 1, freq: 1, stack: 2,
+  scale: 3.5, octaves: 4, contrast: 1, bias: 0.5,
+  charsetIdx: 0, charSize: 100,
+  glitchRate: 4, glitchPulse: 18,
+  cols: 20, rows: 20,
+};
+const DEFAULTS = {...P};
+
+// ── NOISE ──────────────────────────────────────────────────
+function s3(t){ return t*t*(3-2*t); }
+function lrp(a,b,t){ return a+t*(b-a); }
+const R=256, RM=R-1;
+const V=new Float32Array(R*R);
+for(let i=0;i<V.length;i++) V[i]=Math.random()*2-1;
+function vn(x,y){
+  const xi=((Math.floor(x)%R)+R)&RM, yi=((Math.floor(y)%R)+R)&RM;
+  const xf=x-Math.floor(x), yf=y-Math.floor(y);
+  const u=s3(xf), v=s3(yf);
+  const xi1=(xi+1)&RM, yi1=(yi+1)&RM;
+  return lrp(lrp(V[yi*R+xi],V[yi*R+xi1],u),lrp(V[yi1*R+xi],V[yi1*R+xi1],u),v);
+}
+function fbm(x,y,oct){
+  let v=0,a=.5,f=1;
+  const freqs=[1,2.1,4.3,8.7,17.1,34.3];
+  const amps=[.5,.25,.125,.0625,.03125,.015625];
+  for(let i=0;i<oct;i++) v+=vn(x*freqs[i],y*freqs[i])*amps[i];
+  return v;
+}
+
+// ── GRID ───────────────────────────────────────────────────
+const g = document.getElementById('grid');
+let COLS=P.cols, ROWS=P.rows, N=COLS*ROWS;
+let divs=[], spans=[];
+let cW=[], rW=[];
+let glitchMask = new Uint8Array(N);
+let baseChars = [];
+
+function buildWaves(len){
+  return Array.from({length:len},()=>({
+    base:1,
+    w:[
+      {ph:Math.random()*Math.PI*2, fr:.00007+Math.random()*.0012, am:.15+Math.random()*.45},
+      {ph:Math.random()*Math.PI*2, fr:.00004+Math.random()*.0006, am:.10+Math.random()*.25},
+      {ph:Math.random()*Math.PI*2, fr:.00003+Math.random()*.0004, am:.07+Math.random()*.18},
+      {ph:Math.random()*Math.PI*2, fr:.00002+Math.random()*.0003, am:.05+Math.random()*.12},
+    ]
+  }));
+}
+
+function rebuildGrid(){
+  COLS=P.cols; ROWS=P.rows; N=COLS*ROWS;
+  g.innerHTML='';
+  divs=[]; spans=[];
+  for(let i=0;i<N;i++){
+    const d=document.createElement('div');
+    const s=document.createElement('span');
+    d.appendChild(s);
+    g.appendChild(d);
+    divs.push(d); spans.push(s);
+  }
+  g.style.gridTemplateColumns=`repeat(${COLS},1fr)`;
+  g.style.gridTemplateRows=`repeat(${ROWS},1fr)`;
+  cW=buildWaves(COLS);
+  rW=buildWaves(ROWS);
+  glitchMask=new Uint8Array(N);
+  const cs=CHARSETS[P.charsetIdx];
+  baseChars=Array.from({length:N},()=>cs[Math.floor(Math.random()*cs.length)]);
+  refreshGlitch();
+  applyCharSize();
+}
+
+function applyCharSize(){
+  const s=P.charSize+'cqmin';
+  for(const sp of spans) sp.style.fontSize=s;
+}
+
+let frameCount=0;
+function refreshGlitch(){
+  const rate=P.glitchRate/100;
+  for(let i=0;i<N;i++) glitchMask[i]=(Math.random()<rate)?1:0;
+}
+
+// FPS
+let lastFpsTime=0, fpsFrames=0;
+const fpsEl=document.getElementById('fps-counter');
+
+const DX0=.000055, DY0=.000042;
+
+function loop(t){
+  // FPS
+  fpsFrames++;
+  if(t-lastFpsTime>=1000){
+    fpsEl.textContent=fpsFrames+' fps';
+    fpsFrames=0; lastFpsTime=t;
+  }
+
+  frameCount++;
+  if(frameCount%P.glitchPulse===0) refreshGlitch();
+
+  const STACKS=P.stack;
+
+  // col track sizes
+  const cR=cW.map(c=>{
+    let v=c.base;
+    for(let i=0;i<STACKS;i++) v+=c.w[i].am*P.amp*Math.sin(c.w[i].ph+c.w[i].fr*P.freq*t);
+    return Math.max(.02,v);
+  });
+  const rR=rW.map(r=>{
+    let v=r.base;
+    for(let i=0;i<STACKS;i++) v+=r.w[i].am*P.amp*Math.sin(r.w[i].ph+r.w[i].fr*P.freq*t);
+    return Math.max(.02,v);
+  });
+  const cS=cR.reduce((a,b)=>a+b);
+  const rS=rR.reduce((a,b)=>a+b);
+  g.style.gridTemplateColumns=cR.map(v=>(v/cS*100).toFixed(2)+'%').join(' ');
+  g.style.gridTemplateRows=rR.map(v=>(v/rS*100).toFixed(2)+'%').join(' ');
+
+  const ox=t*DX0*P.speed, oy=t*DY0*P.speed;
+  const sc=P.scale;
+  const oct=P.octaves;
+  const cs=CHARSETS[P.charsetIdx];
+  const clen=cs.length;
+  let k=0;
+  for(let r=0;r<ROWS;r++){
+    const ny=r/ROWS*sc+oy;
+    for(let c=0;c<COLS;c++){
+      let ch;
+      if(glitchMask[k]){
+        ch=GLITCH_CHARS[Math.floor(Math.random()*GLITCH_CHARS.length)];
+      } else {
+        const n=fbm(c/COLS*sc+ox, ny, oct); // ~-0.94..0.94
+        // apply contrast + bias
+        let norm=(n*.53+.5); // 0..1
+        norm=Math.pow(Math.min(1,Math.max(0,norm)), 1/P.contrast);
+        norm=Math.min(1,Math.max(0,norm*P.bias*2));
+        const ci=Math.floor(norm*(clen-1));
+        ch=(Math.random()<.06)?baseChars[k]:cs[ci];
+      }
+      spans[k].textContent=ch;
+      k++;
+    }
+  }
+  requestAnimationFrame(loop);
+}
+
+// ── CONTROLS WIRING ───────────────────────────────────────
+function wire(id, key, display, fmt, rebuild, extra){
+  const sl=document.getElementById('sl-'+id);
+  const vl=document.getElementById('val-'+id);
+  sl.addEventListener('input',()=>{
+    const v=parseFloat(sl.value);
+    P[key]=v;
+    if(vl) vl.textContent=fmt?fmt(v):v.toFixed(2);
+    if(rebuild) rebuildGrid();
+    if(extra) extra(v);
+  });
+}
+
+wire('speed',   'speed',   true,  v=>v.toFixed(2));
+wire('amp',     'amp',     true,  v=>v.toFixed(2));
+wire('freq',    'freq',    true,  v=>v.toFixed(2));
+wire('stack',   'stack',   true,  v=>Math.round(v)+'', false, v=>{P.stack=Math.round(v);});
+wire('scale',   'scale',   true,  v=>v.toFixed(2));
+wire('oct',     'octaves', true,  v=>Math.round(v)+'', false, v=>{P.octaves=Math.round(v);});
+wire('contrast','contrast',true,  v=>v.toFixed(2));
+wire('bias',    'bias',    true,  v=>v.toFixed(2));
+wire('charsize','charSize',true,  v=>Math.round(v)+'', false, ()=>applyCharSize());
+wire('glitch',  'glitchRate', true, v=>Math.round(v)+'');
+wire('gpulse',  'glitchPulse',true,v=>Math.round(v)+'', false, v=>{P.glitchPulse=Math.round(v);});
+wire('cols',    'cols',    true,  v=>Math.round(v)+'', true);
+wire('rows',    'rows',    true,  v=>Math.round(v)+'', true);
+
+document.getElementById('sl-charset').addEventListener('change',e=>{
+  P.charsetIdx=parseInt(e.target.value);
+  const cs=CHARSETS[P.charsetIdx];
+  baseChars=Array.from({length:N},()=>cs[Math.floor(Math.random()*cs.length)]);
+});
+
+document.getElementById('reset-btn').addEventListener('click',()=>{
+  Object.assign(P,DEFAULTS);
+  // sync sliders
+  const map={speed:'speed',amp:'amp',freq:'freq',stack:'stack',scale:'scale',
+             oct:'octaves',contrast:'contrast',bias:'bias',charsize:'charSize',
+             glitch:'glitchRate',gpulse:'glitchPulse',cols:'cols',rows:'rows'};
+  for(const [id,key] of Object.entries(map)){
+    const sl=document.getElementById('sl-'+id);
+    const vl=document.getElementById('val-'+id);
+    if(sl){ sl.value=DEFAULTS[key]; }
+    if(vl){ vl.textContent=typeof DEFAULTS[key]==='number'&&Number.isInteger(DEFAULTS[key])?
+      DEFAULTS[key]+'':DEFAULTS[key].toFixed(2); }
+  }
+  document.getElementById('sl-charset').value=0;
+  rebuildGrid();
+});
+
+// ── INIT ──────────────────────────────────────────────────
+rebuildGrid();
+requestAnimationFrame(loop);
+
+})();
+</script>
+</body>
+</html>

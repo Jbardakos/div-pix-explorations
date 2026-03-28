@@ -1,0 +1,279 @@
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+#W{max-width:600px;margin:.8rem auto;font-family:var(--font-sans,sans-serif);}
+#cW{position:relative;width:min(600px,96vw);aspect-ratio:1;background:#040404;margin:0 auto;cursor:pointer;border-radius:2px;overflow:hidden;}
+#c{display:block;width:100%;height:100%;image-rendering:pixelated;image-rendering:crisp-edges;}
+#hint{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.28);pointer-events:none;transition:opacity .5s;}
+.sec{padding:.4rem 0 .15rem;border-top:.5px solid var(--color-border-tertiary);margin-top:.4rem;}
+.sec h4{font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--color-text-tertiary);margin-bottom:.28rem;}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:3px 12px;}
+.row{display:flex;align-items:center;gap:5px;}
+.row label{font-size:9px;text-transform:uppercase;letter-spacing:.04em;color:var(--color-text-secondary);min-width:58px;}
+.row input{flex:1;accent-color:var(--color-text-primary);height:3px;}
+.row span{font-size:9px;color:var(--color-text-primary);min-width:30px;text-align:right;font-variant-numeric:tabular-nums;}
+.togs{display:flex;gap:5px;flex-wrap:wrap;margin-top:.3rem;}
+.tog{font-size:9px;padding:2px 9px;border:.5px solid var(--color-border-secondary);border-radius:99px;cursor:pointer;letter-spacing:.05em;text-transform:uppercase;color:var(--color-text-secondary);user-select:none;}
+.tog.on{background:var(--color-text-primary);color:var(--color-background-primary);border-color:var(--color-text-primary);}
+</style>
+
+<div id="W">
+  <div id="cW"><canvas id="c" width="48" height="48"></canvas>
+    <div id="hint">drop image · click to load</div>
+    <input type="file" id="fi" accept="image/*" style="display:none">
+  </div>
+  <div class="sec"><h4>World</h4><div class="grid2">
+    <div class="row"><label>Speed</label><input type="range" id="s_spd" min=".05" max="4" step=".05" value="1"><span id="v_spd">1.0×</span></div>
+    <div class="row"><label>Density</label><input type="range" id="s_den" min=".2" max="3" step=".1" value="1"><span id="v_den">1.0</span></div>
+    <div class="row"><label>Decay</label><input type="range" id="s_dec" min=".96" max=".9999" step=".0005" value=".994"><span id="v_dec">.9940</span></div>
+    <div class="row"><label>Deposit</label><input type="range" id="s_dep" min=".005" max=".2" step=".005" value=".04"><span id="v_dep">.040</span></div>
+  </div></div>
+  <div class="sec"><h4>Particles</h4><div class="grid2">
+    <div class="row"><label>Count</label><input type="range" id="s_pc" min="10" max="400" step="10" value="100"><span id="v_pc">100</span></div>
+    <div class="row"><label>Life</label><input type="range" id="s_pl" min=".001" max=".04" step=".001" value=".008"><span id="v_pl">.008</span></div>
+    <div class="row"><label>Flow</label><input type="range" id="s_pf" min=".05" max="1" step=".05" value=".35"><span id="v_pf">.35</span></div>
+    <div class="row"><label>P Speed</label><input type="range" id="s_ps" min=".05" max="2" step=".05" value=".6"><span id="v_ps">.60</span></div>
+    <div class="row"><label>Smear</label><input type="range" id="s_sm" min=".5" max=".999" step=".005" value=".88"><span id="v_sm">.880</span></div>
+    <div class="row"><label>Smear len</label><input type="range" id="s_sl" min="1" max="12" step="1" value="4"><span id="v_sl">4</span></div>
+  </div></div>
+  <div class="sec"><h4>Growth</h4><div class="grid2">
+    <div class="row"><label>Orgs</label><input type="range" id="s_go" min="1" max="14" step="1" value="4"><span id="v_go">4</span></div>
+    <div class="row"><label>Branch</label><input type="range" id="s_gb" min=".002" max=".08" step=".002" value=".022"><span id="v_gb">.022</span></div>
+    <div class="row"><label>Step</label><input type="range" id="s_gs" min=".1" max="2" step=".05" value=".65"><span id="v_gs">.65</span></div>
+    <div class="row"><label>Memory</label><input type="range" id="s_gm" min="10" max="200" step="5" value="60"><span id="v_gm">60</span></div>
+  </div></div>
+  <div class="sec"><h4>Creatures</h4><div class="grid2">
+    <div class="row"><label>Pop</label><input type="range" id="s_cc" min="2" max="40" step="1" value="8"><span id="v_cc">8</span></div>
+    <div class="row"><label>Mutation</label><input type="range" id="s_cm" min="1" max="60" step="1" value="18"><span id="v_cm">18</span></div>
+    <div class="row"><label>Turn</label><input type="range" id="s_ct" min=".01" max=".4" step=".01" value=".12"><span id="v_ct">.12</span></div>
+    <div class="row"><label>Trail</label><input type="range" id="s_ctr" min="2" max="40" step="1" value="12"><span id="v_ctr">12</span></div>
+  </div></div>
+  <div class="sec"><h4>Layers</h4>
+    <div class="togs">
+      <span class="tog on" id="t_par">Particles</span>
+      <span class="tog on" id="t_grw">Growth</span>
+      <span class="tog on" id="t_cre">Creatures</span>
+      <span class="tog" id="t_rgb">RGB split</span>
+      <span class="tog" id="t_inv">Invert</span>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+const G=48;
+const cv=document.getElementById('c');
+const ctx=cv.getContext('2d');
+const idat=ctx.createImageData(G,G);
+
+let SPEED=1,DENSITY=1,DECAY=.994,DEPOSIT=.04;
+let P_MAX=100,P_LIFE=.008,P_FLOW=.35,P_SPD=.6,P_SMEAR=.88,P_SLEN=4;
+let G_MAX=4,G_BRANCH=.022,G_STEP=.65,G_MEM=60;
+let C_CAP=8,C_MUT=18,C_TURN=.12,C_TRAIL=12;
+let L_PAR=true,L_GRW=true,L_CRE=true,L_RGB=false,L_INV=false;
+
+const pix=new Float32Array(G*G*3);
+const src=new Float32Array(G*G*3);
+for(let i=0;i<G*G;i++){const v=40+Math.random()*130;pix[i*3]=pix[i*3+1]=pix[i*3+2]=v;src[i*3]=src[i*3+1]=src[i*3+2]=v;}
+
+function clamp(v){return Math.min(255,Math.max(0,v));}
+function pGet(x,y){const xx=Math.max(0,Math.min(G-1,x|0)),yy=Math.max(0,Math.min(G-1,y|0)),i=(yy*G+xx)*3;return[pix[i],pix[i+1],pix[i+2]];}
+function pSet(x,y,r,g,b,a){const xx=Math.max(0,Math.min(G-1,x|0)),yy=Math.max(0,Math.min(G-1,y|0)),i=(yy*G+xx)*3,ia=1-a;pix[i]=pix[i]*ia+r*a;pix[i+1]=pix[i+1]*ia+g*a;pix[i+2]=pix[i+2]*ia+b*a;}
+
+const NR=256;const NV=new Float32Array(NR*NR);for(let i=0;i<NV.length;i++)NV[i]=Math.random()*2-1;
+function s3(t){return t*t*(3-2*t);}function lrp(a,b,t){return a+t*(b-a);}
+function vn(x,y){const xi=((x|0)%NR+NR)%NR,yi=((y|0)%NR+NR)%NR,xf=x-(x|0),yf=y-(y|0),xi1=(xi+1)%NR,yi1=(yi+1)%NR;return lrp(lrp(NV[yi*NR+xi],NV[yi*NR+xi1],s3(xf)),lrp(NV[yi1*NR+xi],NV[yi1*NR+xi1],s3(xf)),s3(yf));}
+function fbm(x,y){return vn(x,y)*.5+vn(x*2.1,y*2.1)*.25+vn(x*4.3,y*4.3)*.125;}
+function flow(x,y,t){return fbm(x/8+t*.000035,y/8)*Math.PI*4;}
+
+// === PARTICLES with smear ===
+const parts=[];
+function mkP(){
+  const gx=Math.random()*G,gy=Math.random()*G;
+  const[r,g,b]=pGet(gx,gy);
+  const a=Math.random()*Math.PI*2;
+  return{x:gx,y:gy,px:gx,py:gy,vx:Math.cos(a)*P_SPD,vy:Math.sin(a)*P_SPD,r,g,b,life:1};
+}
+for(let i=0;i<60;i++)parts.push(mkP());
+
+function tickParticles(t){
+  while(parts.length<P_MAX*DENSITY)parts.push(mkP());
+  let i=parts.length;
+  while(i--){
+    const p=parts[i];
+    // store previous pos
+    p.px=p.x;p.py=p.y;
+    const fa=flow(p.x,p.y,t);
+    p.vx=p.vx*(1-P_FLOW*.15)+Math.cos(fa)*P_FLOW*.22;
+    p.vy=p.vy*(1-P_FLOW*.15)+Math.sin(fa)*P_FLOW*.22;
+    p.x=(p.x+p.vx*P_SPD*SPEED+G)%G;
+    p.y=(p.y+p.vy*P_SPD*SPEED+G)%G;
+    p.life-=P_LIFE*SPEED;
+
+    // SMEAR: drag pixels from previous position to current along the path
+    const dx=p.x-p.px,dy=p.y-p.py;
+    const dist=Math.sqrt(dx*dx+dy*dy)||.001;
+    const steps=Math.max(1,Math.ceil(dist*P_SLEN));
+    for(let s=0;s<=steps;s++){
+      const tt=s/steps;
+      const sx=p.px+dx*tt,sy=p.py+dy*tt;
+      // sample from smear source (slightly behind)
+      const srcX=(p.px-dx*.3+G)%G,srcY=(p.py-dy*.3+G)%G;
+      const[sr,sg,sb]=pGet(srcX,srcY);
+      // blend toward sampled color — creates pixel drag
+      const alpha=(1-tt)*P_SMEAR*.35*p.life;
+      pSet(sx,sy,sr*(1-tt)+p.r*tt,sg*(1-tt)+p.g*tt,sb*(1-tt)+p.b*tt,alpha);
+    }
+    // final deposit at current pos with own color
+    pSet(p.x,p.y,p.r,p.g,p.b,DEPOSIT*.8);
+
+    if(p.life<=0){parts[i]=parts[parts.length-1];parts.pop();}
+  }
+}
+
+// === GROWTH ===
+class Org{
+  constructor(){
+    const gx=Math.random()*G|0,gy=Math.random()*G|0;
+    const[r,g,b]=pGet(gx,gy);
+    this.segs=[];
+    this.tips=[{x:gx+.5,y:gy+.5,ang:Math.random()*Math.PI*2,r,g,b,e:1,age:0}];
+    this.dead=false;
+  }
+  tick(t){
+    const nt=[];
+    for(const tp of this.tips){
+      tp.age++;tp.e-=.003;if(tp.e<=0||tp.age>500)continue;
+      const fa=flow(tp.x,tp.y,t);
+      tp.ang=tp.ang*.8+fa*.2+(Math.random()-.5)*.3;
+      const nx=tp.x+Math.cos(tp.ang)*G_STEP;
+      const ny=tp.y+Math.sin(tp.ang)*G_STEP;
+      if(nx<0||nx>=G||ny<0||ny>=G)continue;
+      const[pr,pg,pb]=pGet(nx,ny);
+      this.segs.push({x1:tp.x,y1:tp.y,x2:nx,y2:ny,r:tp.r,g:tp.g,b:tp.b,a:tp.e*.85});
+      pSet(nx,ny,tp.r,tp.g,tp.b,DEPOSIT*1.2);
+      tp.r=tp.r*.9+pr*.1;tp.g=tp.g*.9+pg*.1;tp.b=tp.b*.9+pb*.1;
+      tp.x=nx;tp.y=ny;nt.push(tp);
+      if(Math.random()<G_BRANCH&&nt.length<18)
+        nt.push({x:nx,y:ny,ang:tp.ang+(Math.random()-.5)*Math.PI*.9,r:tp.r,g:tp.g,b:tp.b,e:tp.e*.55,age:0});
+    }
+    this.tips=nt;
+    for(const s of this.segs){s.a*=.997;const mx=(s.x1+s.x2)/2,my=(s.y1+s.y2)/2;pSet(mx,my,s.r,s.g,s.b,DEPOSIT*s.a*.4);}
+    if(this.segs.length>G_MEM)this.segs.splice(0,this.segs.length-G_MEM);
+    this.segs=this.segs.filter(s=>s.a>.01);
+    this.dead=this.tips.length===0&&this.segs.length===0;
+  }
+}
+let orgs=Array.from({length:G_MAX},()=>new Org());
+
+// === CREATURES ===
+class Creature{
+  constructor(x,y,r,g,b,e){
+    this.x=x!=null?x:Math.random()*G;this.y=y!=null?y:Math.random()*G;
+    const[pr,pg,pb]=pGet(this.x,this.y);
+    this.r=r!=null?r:pr;this.g=g!=null?g:pg;this.b=b!=null?b:pb;
+    this.ang=Math.random()*Math.PI*2;this.sp=.1+Math.random()*.22;
+    this.e=e!=null?e:.4+Math.random()*.5;this.age=0;this.trail=[];
+  }
+  tick(t){
+    this.age++;this.e-=.0006;
+    const fa=flow(this.x,this.y,t);
+    this.ang=this.ang*(1-C_TURN)+fa*C_TURN+(Math.random()-.5)*.14;
+    this.x=(this.x+Math.cos(this.ang)*this.sp*SPEED+G)%G;
+    this.y=(this.y+Math.sin(this.ang)*this.sp*SPEED+G)%G;
+    const[pr,pg,pb]=pGet(this.x,this.y);
+    this.e+=((pr+pg+pb)/765)*.002;
+    pSet(this.x,this.y,this.r,this.g,this.b,DEPOSIT*1.3);
+    this.trail.push({x:this.x,y:this.y});
+    if(this.trail.length>C_TRAIL)this.trail.shift();
+    for(let i=0;i<this.trail.length;i++)pSet(this.trail[i].x,this.trail[i].y,this.r,this.g,this.b,(i/this.trail.length)*DEPOSIT*.5);
+  }
+  spawn(){
+    if(this.e>.85&&Math.random()<.004*DENSITY&&this.age>60){
+      this.e*=.5;const m=C_MUT;
+      return new Creature((this.x+(Math.random()-.5)*4+G)%G,(this.y+(Math.random()-.5)*4+G)%G,
+        clamp(this.r+(Math.random()-.5)*m),clamp(this.g+(Math.random()-.5)*m),clamp(this.b+(Math.random()-.5)*m),.36);
+    }return null;
+  }
+  get dead(){return this.e<=0||this.age>6000;}
+}
+let creatures=Array.from({length:C_CAP},()=>new Creature());
+
+// image load
+const cW=document.getElementById('cW');
+const fi=document.getElementById('fi');
+const hint=document.getElementById('hint');
+cW.onclick=()=>fi.click();
+cW.ondragover=e=>e.preventDefault();
+cW.ondrop=e=>{e.preventDefault();loadF(e.dataTransfer.files[0]);};
+fi.onchange=()=>loadF(fi.files[0]);
+function loadF(f){
+  if(!f)return;const url=URL.createObjectURL(f);const img=new Image();
+  img.onload=()=>{
+    const tc=document.createElement('canvas');tc.width=G;tc.height=G;
+    const tctx=tc.getContext('2d');tctx.drawImage(img,0,0,G,G);
+    const d=tctx.getImageData(0,0,G,G).data;
+    for(let i=0;i<G*G;i++){src[i*3]=d[i*4];src[i*3+1]=d[i*4+1];src[i*3+2]=d[i*4+2];pix[i*3]=d[i*4];pix[i*3+1]=d[i*4+1];pix[i*3+2]=d[i*4+2];}
+    parts.length=0;orgs=Array.from({length:G_MAX},()=>new Org());creatures=Array.from({length:C_CAP},()=>new Creature());
+    hint.style.opacity='0';URL.revokeObjectURL(url);
+  };img.src=url;
+}
+
+// controls
+function sl(si,vi,fmt,set){
+  const el=document.getElementById(si),vl=document.getElementById(vi);
+  vl.textContent=fmt(parseFloat(el.value));
+  el.oninput=()=>{const v=parseFloat(el.value);set(v);vl.textContent=fmt(v);};
+}
+sl('s_spd','v_spd',v=>v.toFixed(1)+'×',v=>SPEED=v);
+sl('s_den','v_den',v=>v.toFixed(1),v=>DENSITY=v);
+sl('s_dec','v_dec',v=>v.toFixed(4),v=>DECAY=v);
+sl('s_dep','v_dep',v=>v.toFixed(3),v=>DEPOSIT=v);
+sl('s_pc','v_pc',v=>v|0,v=>P_MAX=v);
+sl('s_pl','v_pl',v=>v.toFixed(3),v=>P_LIFE=v);
+sl('s_pf','v_pf',v=>v.toFixed(2),v=>P_FLOW=v);
+sl('s_ps','v_ps',v=>v.toFixed(2),v=>P_SPD=v);
+sl('s_sm','v_sm',v=>v.toFixed(3),v=>P_SMEAR=v);
+sl('s_sl','v_sl',v=>v|0,v=>P_SLEN=v);
+sl('s_go','v_go',v=>v|0,v=>G_MAX=v);
+sl('s_gb','v_gb',v=>v.toFixed(3),v=>G_BRANCH=v);
+sl('s_gs','v_gs',v=>v.toFixed(2),v=>G_STEP=v);
+sl('s_gm','v_gm',v=>v|0,v=>G_MEM=v);
+sl('s_cc','v_cc',v=>v|0,v=>C_CAP=v);
+sl('s_cm','v_cm',v=>v|0,v=>C_MUT=v);
+sl('s_ct','v_ct',v=>v.toFixed(2),v=>C_TURN=v);
+sl('s_ctr','v_ctr',v=>v|0,v=>C_TRAIL=v);
+function tog(id,get,set){const el=document.getElementById(id);el.onclick=()=>{set(!get());el.classList.toggle('on',get());};}
+tog('t_par',()=>L_PAR,v=>L_PAR=v);tog('t_grw',()=>L_GRW,v=>L_GRW=v);
+tog('t_cre',()=>L_CRE,v=>L_CRE=v);tog('t_rgb',()=>L_RGB,v=>L_RGB=v);tog('t_inv',()=>L_INV,v=>L_INV=v);
+
+function frame(t){
+  for(let i=0;i<G*G*3;i++)pix[i]=pix[i]*DECAY+src[i]*(1-DECAY);
+  if(L_PAR)tickParticles(t);
+  if(L_GRW){
+    while(orgs.length<G_MAX*DENSITY&&Math.random()<.02)orgs.push(new Org());
+    for(const o of orgs)o.tick(t);
+    orgs=orgs.filter(o=>!o.dead);
+  }
+  if(L_CRE){
+    const nc=[];
+    for(const c of creatures){
+      c.tick(t);
+      if(!c.dead){nc.push(c);if(nc.length<C_CAP*DENSITY){const b=c.spawn();if(b)nc.push(b);}}
+    }
+    creatures=nc;
+    while(creatures.length<Math.max(2,C_CAP*.3))creatures.push(new Creature());
+  }
+  const dd=idat.data;
+  for(let i=0;i<G*G;i++){
+    let r=pix[i*3],g=pix[i*3+1],b=pix[i*3+2];
+    if(L_RGB){const lx=Math.max(0,i-1),rx=Math.min(G*G-1,i+1);r=pix[lx*3];b=pix[rx*3+2];}
+    if(L_INV){r=255-r;g=255-g;b=255-b;}
+    dd[i*4]=clamp(r);dd[i*4+1]=clamp(g);dd[i*4+2]=clamp(b);dd[i*4+3]=255;
+  }
+  ctx.putImageData(idat,0,0);
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+})();
+</script>

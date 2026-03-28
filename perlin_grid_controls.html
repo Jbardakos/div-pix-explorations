@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Perlin Grid</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{background:#000;width:100%;height:100%;overflow:hidden;font-family:'Courier New',monospace}
+
+#wrap{
+  display:flex;align-items:stretch;justify-content:center;
+  width:100vw;height:100vh;gap:0;
+}
+
+/* grid area */
+#arena{
+  flex:1;display:flex;align-items:center;justify-content:center;
+  min-width:0;
+}
+#grid{
+  display:grid;overflow:hidden;
+  width:min(96%,96vh);aspect-ratio:1;
+}
+
+/* panel */
+#panel{
+  width:220px;min-width:220px;
+  background:#0a0a0a;border-left:1px solid #1a1a1a;
+  overflow-y:auto;padding:14px 12px;
+  display:flex;flex-direction:column;gap:2px;
+}
+#panel h2{
+  color:#3f3;font-size:10px;letter-spacing:.18em;text-transform:uppercase;
+  margin-bottom:10px;border-bottom:1px solid #1f1f1f;padding-bottom:6px;
+}
+.section{
+  color:#555;font-size:9px;letter-spacing:.14em;text-transform:uppercase;
+  margin-top:10px;margin-bottom:3px;
+}
+.row{
+  display:flex;align-items:center;justify-content:space-between;
+  gap:6px;padding:2px 0;
+}
+.row label{color:#888;font-size:9px;letter-spacing:.05em;white-space:nowrap;min-width:72px}
+.row .val{color:#3f3;font-size:9px;min-width:36px;text-align:right}
+input[type=range]{
+  flex:1;height:3px;cursor:pointer;
+  -webkit-appearance:none;appearance:none;
+  background:linear-gradient(to right,#3f3 var(--pct,50%),#222 var(--pct,50%));
+  border-radius:2px;outline:none;border:none;
+}
+input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none;width:9px;height:9px;border-radius:50%;
+  background:#3f3;cursor:pointer;border:none;
+}
+input[type=range]::-moz-range-thumb{
+  width:9px;height:9px;border-radius:50%;background:#3f3;
+  cursor:pointer;border:none;
+}
+#btn-reset{
+  margin-top:12px;padding:5px;background:#111;border:1px solid #2a2a2a;
+  color:#555;font-size:9px;letter-spacing:.1em;cursor:pointer;
+  font-family:inherit;text-transform:uppercase;
+}
+#btn-reset:hover{color:#3f3;border-color:#3f3}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="arena"><div id="grid"></div></div>
+  <div id="panel">
+    <h2>NOISE CONTROLS</h2>
+
+    <div class="section">Drift</div>
+    <div class="row"><label>Speed X</label><input type="range" id="s_dx" min="0" max="5" step="0.01" value="1"><span class="val" id="v_dx"></span></div>
+    <div class="row"><label>Speed Y</label><input type="range" id="s_dy" min="0" max="5" step="0.01" value="1"><span class="val" id="v_dy"></span></div>
+    <div class="row"><label>Dir X</label><input type="range" id="s_dirx" min="-1" max="1" step="0.01" value="1"><span class="val" id="v_dirx"></span></div>
+    <div class="row"><label>Dir Y</label><input type="range" id="s_diry" min="-1" max="1" step="0.01" value="1"><span class="val" id="v_diry"></span></div>
+
+    <div class="section">Noise Field</div>
+    <div class="row"><label>Scale</label><input type="range" id="s_sc" min="0.5" max="12" step="0.1" value="3.5"><span class="val" id="v_sc"></span></div>
+    <div class="row"><label>Octaves</label><input type="range" id="s_oct" min="1" max="4" step="0.01" value="4"><span class="val" id="v_oct"></span></div>
+    <div class="row"><label>Lacunarity</label><input type="range" id="s_lac" min="1.2" max="4" step="0.05" value="2.1"><span class="val" id="v_lac"></span></div>
+    <div class="row"><label>Gain</label><input type="range" id="s_gain" min="0.2" max="0.8" step="0.01" value="0.5"><span class="val" id="v_gain"></span></div>
+
+    <div class="section">Colour Remap</div>
+    <div class="row"><label>Contrast</label><input type="range" id="s_con" min="0" max="2" step="0.01" value="0.53"><span class="val" id="v_con"></span></div>
+    <div class="row"><label>Brightness</label><input type="range" id="s_bri" min="-0.5" max="1.5" step="0.01" value="0.5"><span class="val" id="v_bri"></span></div>
+    <div class="row"><label>Range</label><input type="range" id="s_rng" min="40" max="255" step="1" value="240"><span class="val" id="v_rng"></span></div>
+    <div class="row"><label>Offset</label><input type="range" id="s_off" min="0" max="60" step="1" value="0"><span class="val" id="v_off"></span></div>
+
+    <div class="section">Grid Waves</div>
+    <div class="row"><label>Amplitude</label><input type="range" id="s_amp" min="0" max="3" step="0.01" value="1"><span class="val" id="v_amp"></span></div>
+    <div class="row"><label>Freq Scale</label><input type="range" id="s_frq" min="0" max="5" step="0.01" value="1"><span class="val" id="v_frq"></span></div>
+
+    <button id="btn-reset">Reset defaults</button>
+  </div>
+</div>
+
+<script>
+(function(){
+const COLS=10,ROWS=10,N=COLS*ROWS;
+
+// ── defaults ──────────────────────────────────────────────────────────────────
+const DEF={
+  dx:1, dy:1, dirx:1, diry:1,
+  sc:3.5, oct:4, lac:2.1, gain:0.5,
+  con:0.53, bri:0.5, rng:240, off:0,
+  amp:1, frq:1
+};
+const P={...DEF};
+
+// ── slider wiring ─────────────────────────────────────────────────────────────
+function fmt(v){return isNaN(v)?'–':(Math.abs(v)<10?v.toFixed(2):Math.round(v))+''}
+function wire(id,key){
+  const sl=document.getElementById('s_'+id);
+  const vl=document.getElementById('v_'+id);
+  function upd(){
+    P[key]=parseFloat(sl.value);
+    vl.textContent=fmt(P[key]);
+    const mn=parseFloat(sl.min),mx=parseFloat(sl.max);
+    sl.style.setProperty('--pct',((P[key]-mn)/(mx-mn)*100).toFixed(1)+'%');
+  }
+  sl.addEventListener('input',upd);
+  upd();
+}
+wire('dx','dx'); wire('dy','dy'); wire('dirx','dirx'); wire('diry','diry');
+wire('sc','sc'); wire('oct','oct'); wire('lac','lac'); wire('gain','gain');
+wire('con','con'); wire('bri','bri'); wire('rng','rng'); wire('off','off');
+wire('amp','amp'); wire('frq','frq');
+
+document.getElementById('btn-reset').addEventListener('click',()=>{
+  Object.assign(P,DEF);
+  Object.keys(DEF).forEach(k=>{
+    const sl=document.getElementById('s_'+k);
+    if(sl){sl.value=DEF[k]; sl.dispatchEvent(new Event('input'));}
+  });
+});
+
+// ── HEX cache — rebuilt when rng/off change ───────────────────────────────────
+// We compute on the fly in the loop instead (rng+off can change every frame)
+
+// ── DOM grid ─────────────────────────────────────────────────────────────────
+const g=document.getElementById('grid');
+g.style.gridTemplateColumns=`repeat(${COLS},1fr)`;
+g.style.gridTemplateRows=`repeat(${ROWS},1fr)`;
+const divs=Array.from({length:N},()=>{const d=document.createElement('div');g.appendChild(d);return d;});
+
+// ── Value noise ───────────────────────────────────────────────────────────────
+const NR=256,NM=NR-1;
+function mkV(){const V=new Float32Array(NR*NR);for(let i=0;i<V.length;i++)V[i]=Math.random()*2-1;return V}
+const V1=mkV();
+function s3(t){return t*t*(3-2*t)}
+function lrp(a,b,t){return a+(b-a)*t}
+function vn(x,y){
+  const xi=((Math.floor(x)%NR)+NR)&NM,yi=((Math.floor(y)%NR)+NR)&NM;
+  const u=s3(x-Math.floor(x)),v=s3(y-Math.floor(y));
+  const x1=(xi+1)&NM,y1=(yi+1)&NM;
+  return lrp(lrp(V1[yi*NR+xi],V1[yi*NR+x1],u),lrp(V1[y1*NR+xi],V1[y1*NR+x1],u),v);
+}
+
+// fbm with variable lacunarity, gain, octaves
+function fbm(x,y){
+  const{oct,lac,gain}=P;
+  let v=0,amp=1,freq=1,tot=0;
+  const io=Math.floor(oct);
+  const frac=oct-io;
+  for(let i=0;i<io;i++){v+=vn(x*freq,y*freq)*amp;tot+=amp;freq*=lac;amp*=gain;}
+  if(frac>0.001){v+=vn(x*freq,y*freq)*amp*frac;tot+=amp*frac;}
+  return tot>0?v/tot*1.5:0; // renorm so output ~[-1,1]
+}
+
+// ── Per-col/row sine waves ────────────────────────────────────────────────────
+const BASE_DX=0.000055,BASE_DY=0.000042;
+const cW=Array.from({length:COLS},()=>({base:1,w:[
+  {ph:Math.random()*Math.PI*2,fr:.00007+Math.random()*.0012,am:.15+Math.random()*.45},
+  {ph:Math.random()*Math.PI*2,fr:.00004+Math.random()*.0006,am:.1+Math.random()*.25}
+]}));
+const rW=Array.from({length:ROWS},()=>({base:1,w:[
+  {ph:Math.random()*Math.PI*2,fr:.00007+Math.random()*.0012,am:.15+Math.random()*.45},
+  {ph:Math.random()*Math.PI*2,fr:.00004+Math.random()*.0006,am:.1+Math.random()*.25}
+]}));
+
+function loop(t){
+  const{dx,dy,dirx,diry,sc,con,bri,rng,off,amp,frq}=P;
+
+  // grid deformation
+  const cR=cW.map(c=>Math.max(.05,
+    c.base
+    +c.w[0].am*amp*Math.sin(c.w[0].ph+c.w[0].fr*frq*t)
+    +c.w[1].am*amp*Math.sin(c.w[1].ph+c.w[1].fr*frq*t)
+  ));
+  const rR=rW.map(r=>Math.max(.05,
+    r.base
+    +r.w[0].am*amp*Math.sin(r.w[0].ph+r.w[0].fr*frq*t)
+    +r.w[1].am*amp*Math.sin(r.w[1].ph+r.w[1].fr*frq*t)
+  ));
+  const cS=cR.reduce((a,b)=>a+b),rS=rR.reduce((a,b)=>a+b);
+  g.style.gridTemplateColumns=cR.map(v=>(v/cS*100).toFixed(2)+'%').join(' ');
+  g.style.gridTemplateRows   =rR.map(v=>(v/rS*100).toFixed(2)+'%').join(' ');
+
+  const ox=t*BASE_DX*dx*dirx;
+  const oy=t*BASE_DY*dy*diry;
+
+  let k=0;
+  for(let r=0;r<ROWS;r++){
+    const ny=r/ROWS*sc+oy;
+    for(let c=0;c<COLS;c++){
+      const n=fbm(c/COLS*sc+ox,ny);
+      const raw=Math.min(255,Math.max(0,Math.round((n*con+bri)*rng+off)));
+      const v=raw<0?0:raw>255?255:raw;
+      const h=v.toString(16).padStart(2,'0');
+      divs[k++].style.background=`#${h}${h}${h}`;
+    }
+  }
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
