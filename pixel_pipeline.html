@@ -1,0 +1,1711 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PIXEL PIPELINE</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{--bg:#060608;--fg:#fff;--acc:#00ff88;--brd:#1e1e2e;--pan:#09090f;--fs:13px;--mono:'Share Tech Mono','Courier New',monospace;}
+html,body{background:var(--bg);color:var(--fg);font-family:var(--mono);font-size:var(--fs);min-height:100vh;}
+
+#pipe{display:flex;align-items:center;gap:0;padding:.45rem .8rem;border-bottom:1px solid var(--brd);background:var(--bg);position:sticky;top:0;z-index:100;}
+.stb{background:none;border:none;color:#444;font-family:var(--mono);font-size:var(--fs);letter-spacing:.12em;text-transform:uppercase;padding:.3rem .65rem;cursor:pointer;border-bottom:2px solid transparent;transition:color .12s,border-color .12s;}
+.stb.on{color:var(--acc);border-bottom-color:var(--acc);}
+.stb:hover:not(.on){color:#888;}
+.sarr{color:#222;padding:0 .2rem;font-size:11px;}
+#fps-top{margin-left:auto;font-size:11px;color:#333;}
+
+.step{display:none;padding:.8rem;}
+.step.on{display:block;}
+
+/* two-column card layout */
+.two{display:grid;grid-template-columns:1fr 1fr;gap:.8rem;max-width:820px;margin:0 auto;}
+@media(max-width:580px){.two{grid-template-columns:1fr;}}
+.card{background:var(--pan);border:1px solid var(--brd);padding:.65rem;}
+
+/* ── HELP OVERLAY ── */
+#help-overlay{display:none;position:fixed;inset:0;z-index:999;background:rgba(0,0,0,.92);overflow-y:auto;}
+#help-overlay.on{display:block;}
+#help-box{max-width:700px;margin:2rem auto 3rem;background:#08080f;border:1px solid #1e1e2e;padding:1.6rem 2rem 2rem;}
+#help-close{float:right;background:none;border:1px solid #1e1e2e;color:#555;font-family:var(--mono);font-size:12px;letter-spacing:.12em;text-transform:uppercase;padding:.25rem .6rem;cursor:pointer;transition:border-color .12s,color .12s;}
+#help-close:hover{border-color:var(--acc);color:var(--acc);}
+#help-box h1{font-size:13px;letter-spacing:.2em;color:var(--acc);text-transform:uppercase;margin-bottom:1.4rem;padding-bottom:.5rem;border-bottom:1px solid #1e1e2e;}
+#help-box h2{font-size:11px;letter-spacing:.16em;color:var(--acc);text-transform:uppercase;margin:1.4rem 0 .5rem;padding-left:.5rem;border-left:2px solid var(--acc);}
+#help-box h3{font-size:11px;letter-spacing:.12em;color:#666;text-transform:uppercase;margin:.8rem 0 .25rem;}
+#help-box p,#help-box li{font-size:12px;color:#888;line-height:1.75;margin-bottom:.3rem;}
+#help-box li{list-style:none;padding-left:.8rem;}
+#help-box li::before{content:"›  ";color:#333;}
+#help-box code{font-family:var(--mono);font-size:11px;color:var(--acc);background:#0d0d1a;padding:.1rem .3rem;border:1px solid #1e1e2e;}
+#help-box table{width:100%;border-collapse:collapse;margin:.5rem 0;}
+#help-box td,#help-box th{font-size:11px;color:#777;padding:.3rem .5rem;border:1px solid #141428;vertical-align:top;}
+#help-box th{color:#444;letter-spacing:.1em;text-transform:uppercase;background:#0a0a14;}
+#help-box td:first-child{color:var(--acc);white-space:nowrap;min-width:120px;}
+#help-box .note{font-size:11px;color:#333;border-left:2px solid #1e1e2e;padding:.3rem .6rem;margin:.5rem 0;font-style:italic;}
+#help-btn:hover{border-color:var(--acc);color:var(--acc);}
+.ctitle{font-size:11px;letter-spacing:.16em;color:#444;text-transform:uppercase;border-bottom:1px solid var(--brd);padding-bottom:.3rem;margin-bottom:.55rem;}
+.frame{background:#000;border:1px solid var(--brd);width:100%;aspect-ratio:1;display:flex;align-items:center;justify-content:center;margin-bottom:.4rem;overflow:hidden;}
+.frame canvas,.frame img{width:100%;height:100%;image-rendering:pixelated;display:block;}
+.ph{color:#222;font-size:11px;text-align:center;}
+.st{font-size:11px;color:#444;margin:.2rem 0;min-height:13px;}
+.st.ok{color:var(--acc);}
+
+.dz{border:1px dashed #1e1e2e;padding:1rem;text-align:center;cursor:pointer;font-size:11px;color:#2a2a3a;letter-spacing:.1em;transition:border-color .15s;margin-bottom:.4rem;}
+.dz.ov,.dz:hover{border-color:var(--acc);color:#666;}
+
+.pbs{display:flex;flex-wrap:wrap;gap:3px;margin-top:.3rem;}
+.btn{background:none;border:1px solid var(--brd);color:#888;font-family:var(--mono);font-size:var(--fs);letter-spacing:.08em;text-transform:uppercase;padding:.2rem .45rem;cursor:pointer;transition:border-color .12s,color .12s;}
+.btn:hover,.btn.on{border-color:var(--acc);color:var(--acc);}
+.lbr{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:.3rem;}
+.nav{display:flex;gap:5px;justify-content:flex-end;margin-top:.6rem;}
+.nav .btn{padding:.25rem .6rem;}
+
+/* dither */
+.dbr{display:flex;flex-wrap:wrap;gap:3px;margin-bottom:.4rem;}
+.sr{display:flex;flex-direction:column;gap:.1rem;margin-bottom:.3rem;}
+.slrow{display:flex;justify-content:space-between;font-size:var(--fs);color:#bbb;}
+.sv{color:var(--acc);min-width:2.6rem;text-align:right;}
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:2px;background:#1a1a2a;outline:none;cursor:pointer;}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:10px;height:10px;background:var(--acc);border:none;border-radius:0;box-shadow:0 0 4px var(--acc);}
+input[type=range]::-moz-range-thumb{width:10px;height:10px;background:var(--acc);border:none;border-radius:0;}
+label{font-size:var(--fs);color:#bbb;display:flex;align-items:center;gap:5px;cursor:pointer;margin:.15rem 0;}
+input[type=checkbox]{accent-color:var(--acc);width:12px;height:12px;}
+select{background:#060608;color:#ccc;border:1px solid var(--brd);font-family:var(--mono);font-size:var(--fs);padding:.15rem .25rem;cursor:pointer;outline:none;width:100%;}
+select option{background:#060608;}
+
+/* pixel prop display */
+.pg{display:grid;grid-template-columns:repeat(5,1fr);gap:3px;margin:.35rem 0;}
+.pc{background:#0a0a14;border:1px solid var(--brd);padding:.25rem;text-align:center;}
+.pk{font-size:10px;color:#333;letter-spacing:.06em;}
+.pv{font-size:12px;color:var(--acc);}
+.pband{display:flex;gap:2px;height:5px;margin:.25rem 0;}
+
+/* step C */
+#step-c{padding:0;}
+#vbar{display:flex;align-items:center;gap:5px;padding:.4rem .7rem;border-bottom:1px solid var(--brd);background:var(--bg);position:sticky;top:38px;z-index:90;}
+#vbar span{font-size:11px;color:#333;letter-spacing:.1em;}
+#fps2{margin-left:auto;font-size:11px;color:#333;}
+#cbody{display:flex;height:calc(100vh - 78px);}
+#czone{flex:1;display:flex;align-items:center;justify-content:center;background:#000;overflow:hidden;}
+
+/* 1:1 mode */
+body.v11 #main-cv{width:480px;height:480px;display:block;}
+body.v11 #grid-area{display:none!important;}
+/* grid mode */
+body.vgrid #main-cv{display:none!important;}
+body.vgrid #grid-area{display:grid!important;}
+/* full mode — canvas is a square centred in viewport, size controlled by slider */
+body.vfull #main-cv{display:block;image-rendering:pixelated;}
+body.vfull #grid-area{display:none!important;}
+body.vfull #czone{position:relative;}
+
+/* parasite window */
+#parasite-col{width:256px;min-width:256px;background:var(--pan);border-left:1px solid var(--brd);display:flex;flex-direction:column;flex-shrink:0;}
+body.vgrid #parasite-col{display:none;}
+body.vfull #parasite-col{display:none;}
+#para-header{font-size:11px;letter-spacing:.14em;color:#444;text-transform:uppercase;padding:.45rem .65rem;border-bottom:1px solid var(--brd);display:flex;align-items:center;justify-content:space-between;}
+#para-header span.live{color:var(--acc);font-size:10px;animation:blink 1.4s infinite;}
+@keyframes blink{0%,100%{opacity:1;}50%{opacity:.2;}}
+#para-canvas-wrap{padding:.5rem .65rem;}
+.para-frame{background:#000;border:1px solid var(--brd);width:100%;aspect-ratio:1;overflow:hidden;margin-bottom:.4rem;}
+.para-frame canvas{width:100%;height:100%;image-rendering:pixelated;display:block;}
+#para-controls{padding:.4rem .65rem;display:flex;flex-direction:column;gap:.35rem;overflow-y:auto;flex:1;}
+#para-dz{border:1px dashed #1e1e2e;padding:.6rem;text-align:center;cursor:pointer;font-size:11px;color:#2a2a3a;letter-spacing:.08em;margin-bottom:.3rem;transition:border-color .15s;}
+#para-dz:hover,#para-dz.ov{border-color:var(--acc);color:#777;}
+#para-lbr{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:.3rem;}
+
+#main-cv{display:block;image-rendering:pixelated;width:480px;height:480px;}
+#grid-area{display:none;grid-template-columns:repeat(10,1fr);gap:2px;background:#000;padding:2px;}
+#grid-area canvas{width:100%;aspect-ratio:1;image-rendering:pixelated;display:block;}
+
+/* full mode size slider overlay */
+#full-size-bar{display:none;position:absolute;bottom:12px;left:50%;transform:translateX(-50%);background:rgba(6,6,8,.88);border:1px solid #1e1e2e;padding:.35rem .7rem;display:flex;align-items:center;gap:.6rem;z-index:20;}
+body.vfull #full-size-bar{display:flex;}
+#full-size-bar span{font-size:11px;color:#444;letter-spacing:.1em;white-space:nowrap;}
+#full-size-bar input{width:120px;}
+#full-size-bar .sv{color:var(--acc);min-width:2rem;font-size:11px;}
+
+/* control panel */
+#cpanel{width:256px;min-width:256px;background:var(--pan);border-left:1px solid var(--brd);overflow-y:auto;flex-shrink:0;}
+body.vgrid #cpanel,body.vfull #cpanel{display:none;}
+
+.ac{border-bottom:1px solid var(--brd);}
+.ah{display:flex;justify-content:space-between;padding:.45rem .65rem;cursor:pointer;font-size:11px;letter-spacing:.14em;color:#444;text-transform:uppercase;user-select:none;}
+.ah:hover,.ah.op{color:var(--acc);}
+.ab2{padding:.45rem .65rem .6rem;display:flex;flex-direction:column;gap:.35rem;}
+.ab2.h{display:none;}
+.bgr{display:flex;flex-wrap:wrap;gap:3px;}
+.bg{background:none;border:1px solid var(--brd);color:#777;font-family:var(--mono);font-size:11px;letter-spacing:.07em;text-transform:uppercase;padding:.18rem .38rem;cursor:pointer;transition:border-color .12s,color .12s;}
+.bg:hover,.bg.on{border-color:var(--acc);color:var(--acc);}
+.actrow{padding:.45rem .65rem;display:flex;flex-direction:column;gap:4px;}
+.wb{width:100%;background:none;border:1px solid var(--brd);color:#888;font-family:var(--mono);font-size:var(--fs);letter-spacing:.1em;text-transform:uppercase;padding:.25rem;cursor:pointer;transition:border-color .12s,color .12s;}
+.wb:hover{border-color:var(--acc);color:var(--acc);}
+</style>
+</head>
+<body class="v11">
+<div id="pipe">
+  <button class="stb on" data-s="a">A · IMAGE</button><span class="sarr">›</span>
+  <button class="stb" data-s="b">B · TRANSFORM</button><span class="sarr">›</span>
+  <button class="stb" data-s="c">C · SIMULATE</button>
+  <span id="fps-top">--fps</span>
+  <button id="btn-help" style="background:none;border:1px solid #1e1e2e;color:#444;font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;padding:.22rem .55rem;cursor:pointer;margin-left:.6rem;transition:border-color .12s,color .12s;">?  HELP</button>
+</div>
+
+<!-- STEP A -->
+<div id="step-a" class="step on">
+  <div class="two">
+    <div class="card">
+      <div class="ctitle">// source</div>
+      <div class="dz" id="dz">drag &amp; drop · paste · click</div>
+      <div class="lbr">
+        <button class="btn" id="btn-file">LOAD FILE</button>
+        <button class="btn" id="btn-cam-on">WEBCAM</button>
+        <button class="btn" id="btn-cam-off" style="display:none">■ STOP</button>
+      </div>
+      <input type="file" id="fin" accept="image/*" style="display:none">
+      <div class="ctitle" style="margin-top:.5rem">// presets</div>
+      <div class="pbs" id="pbs"></div>
+      <div class="st ok" id="src-st">plasma preset active</div>
+    </div>
+    <div class="card">
+      <div class="ctitle">// preview (48×48)</div>
+      <div class="frame" id="src-frame"><div class="ph">loading…</div></div>
+      <div class="st" id="src-info"></div>
+      <div class="nav"><button class="btn on" id="btn-to-b">TRANSFORM →</button></div>
+    </div>
+  </div>
+</div>
+
+<!-- STEP B -->
+<div id="step-b" class="step">
+  <div class="two">
+    <div class="card">
+      <div class="ctitle">// transform mode</div>
+      <div class="dbr" id="tx-btns">
+        <button class="btn on" data-t="none">NONE (pass-through)</button>
+        <button class="btn" data-t="grey">GREYSCALE</button>
+        <button class="btn" data-t="invert">INVERT</button>
+        <button class="btn" data-t="thresh">THRESHOLD</button>
+        <button class="btn" data-t="fs">DITHER · FS</button>
+        <button class="btn" data-t="bayer4">DITHER · BAYER 4</button>
+        <button class="btn" data-t="bayer8">DITHER · BAYER 8</button>
+        <button class="btn" data-t="atkinson">DITHER · ATKINSON</button>
+        <button class="btn" data-t="rand">DITHER · RANDOM</button>
+        <button class="btn" data-t="posterize">POSTERIZE</button>
+        <button class="btn" data-t="solarize">SOLARIZE</button>
+        <button class="btn" data-t="edge">EDGE DETECT</button>
+        <button class="btn" data-t="emboss">EMBOSS</button>
+        <button class="btn" data-t="blur">BLUR</button>
+        <button class="btn" data-t="sharpen">SHARPEN</button>
+        <button class="btn" data-t="pixelate">PIXELATE</button>
+        <button class="btn" data-t="channelshift">CHANNEL SHIFT</button>
+        <button class="btn" data-t="hue">HUE ROTATE</button>
+        <button class="btn" data-t="contrast">CONTRAST</button>
+        <button class="btn" data-t="noise">ADD NOISE</button>
+        <button class="btn" data-t="quantize">QUANTIZE RGB</button>
+      </div>
+
+      <div class="sr" id="tx-row-thresh" style="display:none"><div class="slrow"><span>threshold</span><span class="sv" id="lth">0.50</span></div><input type="range" id="sl-th" min="0.05" max="0.95" step="0.01" value="0.5"></div>
+      <div class="sr" id="tx-row-nm" style="display:none"><div class="slrow"><span>noise / jitter</span><span class="sv" id="lnm">0.00</span></div><input type="range" id="sl-nm" min="0" max="1" step="0.01" value="0"></div>
+      <div class="sr" id="tx-row-p1"><div class="slrow"><span id="tx-p1-lbl">param 1</span><span class="sv" id="lp1">0.50</span></div><input type="range" id="sl-p1" min="0" max="1" step="0.01" value="0.5"></div>
+      <div class="sr" id="tx-row-p2" style="display:none"><div class="slrow"><span id="tx-p2-lbl">param 2</span><span class="sv" id="lp2">0.50</span></div><input type="range" id="sl-p2" min="0" max="1" step="0.01" value="0.5"></div>
+
+      <label style="margin-top:.3rem"><input type="checkbox" id="chk-col"> keep color (dither only)</label>
+      <label><input type="checkbox" id="chk-inv"> final invert</label>
+
+      <div class="ctitle" style="margin-top:.6rem">// pixel (r,g,b,x,y) — hover preview</div>
+      <div class="pg">
+        <div class="pc"><div class="pk">R</div><div class="pv" id="pv-r">—</div></div>
+        <div class="pc"><div class="pk">G</div><div class="pv" id="pv-g">—</div></div>
+        <div class="pc"><div class="pk">B</div><div class="pv" id="pv-b">—</div></div>
+        <div class="pc"><div class="pk">X</div><div class="pv" id="pv-x">—</div></div>
+        <div class="pc"><div class="pk">Y</div><div class="pv" id="pv-y">—</div></div>
+      </div>
+      <div class="pband" id="pband"></div>
+    </div>
+    <div class="card">
+      <div class="ctitle">// transformed 48×48</div>
+      <div class="frame">
+        <canvas id="dith-cv" width="48" height="48" style="cursor:crosshair;"></canvas>
+      </div>
+      <div class="st" id="dith-st">—</div>
+      <div class="nav">
+        <button class="btn" id="btn-to-a">← IMAGE</button>
+        <button class="btn on" id="btn-to-c">SIMULATE →</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- STEP C -->
+<div id="step-c" class="step">
+  <div id="vbar">
+    <span>view:</span>
+    <button class="btn on" id="vb-11">1:1</button>
+    <button class="btn" id="vb-grid">10×10 GRID</button>
+    <button class="btn" id="vb-full">FULL</button>
+    <span id="fps2" style="margin-left:auto">--fps</span>
+  </div>
+  <div id="cbody">
+    <div id="czone">
+      <canvas id="main-cv" width="48" height="48"></canvas>
+      <div id="grid-area"></div>
+      <div id="full-size-bar">
+        <span>PX SIZE</span>
+        <input type="range" id="sl-pxsz" min="2" max="32" step="1" value="10">
+        <span class="sv" id="l-pxsz">10</span>
+        <span>px/cell</span>
+      </div>
+    </div>
+    <div id="cpanel">
+      <div class="ac">
+        <div class="ah op" data-ac="seg">SEGMENTATION <span>▾</span></div>
+        <div class="ab2">
+          <div class="bgr" id="seg-btns">
+            <button class="bg on" data-v="none">NONE</button>
+            <button class="bg" data-v="c2">COLS 2</button>
+            <button class="bg" data-v="c4">COLS 4</button>
+            <button class="bg" data-v="c8">COLS 8</button>
+            <button class="bg" data-v="r2">ROWS 2</button>
+            <button class="bg" data-v="r4">ROWS 4</button>
+            <button class="bg" data-v="g4">GRID 2×2</button>
+            <button class="bg" data-v="g16">GRID 4×4</button>
+          </div>
+        </div>
+      </div>
+      <div class="ac">
+        <div class="ah op" data-ac="sim">SIMULATION <span>▾</span></div>
+        <div class="ab2">
+          <div class="bgr" id="sim-btns"></div>
+          <div class="sr"><div class="slrow"><span>speed</span><span class="sv" id="lspd">1.0</span></div><input type="range" id="sl-spd" min="0.05" max="4" step="0.05" value="1"></div>
+          <div class="sr"><div class="slrow"><span>force</span><span class="sv" id="lforc">1.0</span></div><input type="range" id="sl-forc" min="0.1" max="4" step="0.05" value="1"></div>
+          <div class="sr"><div class="slrow"><span>damping</span><span class="sv" id="ldamp">0.88</span></div><input type="range" id="sl-damp" min="0.5" max="0.99" step="0.01" value="0.88"></div>
+          <div class="sr"><div class="slrow"><span>return</span><span class="sv" id="lret">0.06</span></div><input type="range" id="sl-ret" min="0" max="0.5" step="0.005" value="0.06"></div>
+          <div class="sr"><div class="slrow"><span>turbulence</span><span class="sv" id="lturb">0.6</span></div><input type="range" id="sl-turb" min="0" max="2" step="0.05" value="0.6"></div>
+        </div>
+      </div>
+      <div class="ac">
+        <div class="ah op" data-ac="rend">RENDERING <span>▾</span></div>
+        <div class="ab2">
+          <div class="bgr" id="rend-btns">
+            <button class="bg on" data-v="dot">DOTS</button>
+            <button class="bg" data-v="sq">SQUARES</button>
+            <button class="bg" data-v="ln">LINE→HOME</button>
+            <button class="bg" data-v="cr">CROSS</button>
+            <button class="bg" data-v="mn">MINIMAL</button>
+          </div>
+          <div class="sr"><div class="slrow"><span>size</span><span class="sv" id="lsz">1.0</span></div><input type="range" id="sl-sz" min="0.2" max="3" step="0.1" value="1"></div>
+          <div class="sr"><div class="slrow"><span>brightness</span><span class="sv" id="lbri">0.9</span></div><input type="range" id="sl-bri" min="0.1" max="1" step="0.05" value="0.9"></div>
+          <div class="sr"><div class="slrow"><span>trail</span><span class="sv" id="ltr">0.12</span></div><input type="range" id="sl-tr" min="0.005" max="0.8" step="0.005" value="0.12"></div>
+          <div class="sr"><div class="slrow"><span>phase speed</span><span class="sv" id="lps">1.0</span></div><input type="range" id="sl-ps" min="0" max="4" step="0.1" value="1"></div>
+        </div>
+      </div>
+      <div class="ac">
+        <div class="ah op" data-ac="post">POST FX <span>▾</span></div>
+        <div class="ab2">
+          <div class="bgr" id="post-btns">
+            <button class="bg on" data-v="none">NONE</button>
+            <button class="bg" data-v="scan">SCANLINES</button>
+            <button class="bg" data-v="crt">CRT</button>
+            <button class="bg" data-v="inv">INVERT</button>
+            <button class="bg" data-v="bw">B&W</button>
+          </div>
+          <div class="sr"><div class="slrow"><span>intensity</span><span class="sv" id="lpi">0.6</span></div><input type="range" id="sl-pi" min="0" max="2" step="0.05" value="0.6"></div>
+          <label><input type="checkbox" id="chk-def" checked> cursor deform</label>
+          <label><input type="checkbox" id="chk-rgb" checked> RGB split on deform</label>
+          <div class="sr"><div class="slrow"><span>deform radius</span><span class="sv" id="ldrad">0.30</span></div><input type="range" id="sl-drad" min="0.05" max="1" step="0.01" value="0.3"></div>
+          <div class="sr"><div class="slrow"><span>deform strength</span><span class="sv" id="ldstr">1.0</span></div><input type="range" id="sl-dstr" min="0.1" max="5" step="0.1" value="1"></div>
+        </div>
+      </div>
+      <div class="actrow">
+        <button class="wb" id="btn-reset">RESET POSITIONS</button>
+        <button class="wb" id="btn-expl">EXPLODE</button>
+        <button class="wb" id="btn-pause">PAUSE</button>
+        <button class="wb" id="btn-regen">RE-RUN PIPELINE</button>
+        <div style="border-top:1px solid var(--brd);margin:.3rem 0 .1rem;padding-top:.3rem;font-size:11px;color:#333;letter-spacing:.1em;">TEMPLATE</div>
+        <button class="wb" id="btn-save-tpl">SAVE SETTINGS .TXT</button>
+        <button class="wb" id="btn-load-tpl">LOAD SETTINGS .TXT</button>
+        <input type="file" id="tpl-in" accept=".txt,.json" style="display:none">
+        <div class="sr" style="margin-top:.15rem"><div class="slrow"><span style="font-size:11px">template name</span></div><input type="text" id="tpl-name" placeholder="my_preset" style="background:#060608;border:1px solid var(--brd);color:#ccc;font-family:var(--mono);font-size:11px;padding:.2rem .3rem;width:100%;outline:none;"></div>
+      </div>
+    </div>
+
+    <!-- PARASITE WINDOW -->
+    <div id="parasite-col">
+      <div id="para-header">
+        <span>PARASITE · HOST</span>
+        <span class="live" id="para-live" style="display:none">● LIVE</span>
+      </div>
+      <div id="para-canvas-wrap">
+        <div style="font-size:10px;color:#333;margin-bottom:.25rem;letter-spacing:.08em;">SIM OUTPUT</div>
+        <div class="para-frame"><canvas id="sim-thumb" width="48" height="48"></canvas></div>
+        <div style="font-size:10px;color:#333;margin:.2rem 0 .25rem;letter-spacing:.08em;">HOST IMAGE</div>
+        <div class="para-frame"><canvas id="host-thumb" width="48" height="48"></canvas></div>
+        <div style="font-size:10px;color:#333;margin:.2rem 0 .25rem;letter-spacing:.08em;">INFESTATION</div>
+        <div class="para-frame"><canvas id="infest-cv" width="48" height="48"></canvas></div>
+      </div>
+      <div id="para-controls">
+        <div id="para-dz">drop host image here<br>or click to load</div>
+        <div id="para-lbr">
+          <button class="bg" id="para-load">LOAD HOST</button>
+          <button class="bg" id="para-cam">WEBCAM</button>
+          <button class="bg" id="para-reset-btn">RESET</button>
+        </div>
+        <input type="file" id="para-fin" accept="image/*" style="display:none">
+        <div style="font-size:10px;color:#333;margin-bottom:.2rem;letter-spacing:.1em;border-top:1px solid var(--brd);padding-top:.35rem;">CA PARAMETERS</div>
+        <div class="sr"><div class="slrow"><span>spread rate</span><span class="sv" id="l-psr">0.08</span></div><input type="range" id="sl-psr" min="0.001" max="0.5" step="0.001" value="0.08"></div>
+        <div class="sr"><div class="slrow"><span>activation thresh</span><span class="sv" id="l-pat">0.30</span></div><input type="range" id="sl-pat" min="0.01" max="1" step="0.01" value="0.3"></div>
+        <div class="sr"><div class="slrow"><span>blend host/sim</span><span class="sv" id="l-pbl">0.60</span></div><input type="range" id="sl-pbl" min="0" max="1" step="0.01" value="0.6"></div>
+        <div class="sr"><div class="slrow"><span>infestation decay</span><span class="sv" id="l-pdc">0.00</span></div><input type="range" id="sl-pdc" min="0" max="0.05" step="0.001" value="0"></div>
+        <div class="sr"><div class="slrow"><span>color mutation</span><span class="sv" id="l-pmut">0.10</span></div><input type="range" id="sl-pmut" min="0" max="1" step="0.01" value="0.1"></div>
+        <div class="sr"><div class="slrow"><span>seed density</span><span class="sv" id="l-psd">0.02</span></div><input type="range" id="sl-psd" min="0.001" max="0.2" step="0.001" value="0.02"></div>
+        <label><input type="checkbox" id="chk-pca" checked> run CA spread</label>
+        <label><input type="checkbox" id="chk-psync" checked> sync to sim speed</label>
+        <label><input type="checkbox" id="chk-pinv"> invert activation</label>
+
+        <div style="font-size:10px;color:#333;margin:.5rem 0 .2rem;letter-spacing:.1em;border-top:1px solid var(--brd);padding-top:.35rem;">DISPLACEMENT MUTATION</div>
+        <label><input type="checkbox" id="chk-pdis"> enable pixel displacement</label>
+        <div class="sr"><div class="slrow"><span>displace strength</span><span class="sv" id="l-pdst">3.0</span></div><input type="range" id="sl-pdst" min="0.5" max="24" step="0.5" value="3"></div>
+        <div class="sr"><div class="slrow"><span>displace scale</span><span class="sv" id="l-pdsc">1.0</span></div><input type="range" id="sl-pdsc" min="0.1" max="4" step="0.1" value="1"></div>
+        <div class="sr"><div class="slrow"><span>warp drift speed</span><span class="sv" id="l-pdds">0.5</span></div><input type="range" id="sl-pdds" min="0" max="4" step="0.1" value="0.5"></div>
+        <div class="sr"><div class="slrow"><span>displace blur</span><span class="sv" id="l-pdbr">0.0</span></div><input type="range" id="sl-pdbr" min="0" max="1" step="0.05" value="0"></div>
+        <div style="font-size:10px;color:#333;margin:.25rem 0 .15rem;letter-spacing:.08em;">displace source</div>
+        <div style="display:flex;gap:3px;flex-wrap:wrap;">
+          <button class="bg on" data-ds="infest">INFEST MAP</button>
+          <button class="bg" data-ds="sim-r">SIM RED</button>
+          <button class="bg" data-ds="sim-g">SIM GREEN</button>
+          <button class="bg" data-ds="sim-b">SIM BLUE</button>
+          <button class="bg" data-ds="sim-lum">SIM LUM</button>
+          <button class="bg" data-ds="noise">NOISE</button>
+        </div>
+        <div style="font-size:10px;color:#333;margin:.4rem 0 .15rem;letter-spacing:.08em;">displace direction</div>
+        <div style="display:flex;gap:3px;flex-wrap:wrap;" id="pddir-btns">
+          <button class="bg on" data-dd="flow">FLOW FIELD</button>
+          <button class="bg" data-dd="radial">RADIAL</button>
+          <button class="bg" data-dd="angular">ANGULAR</button>
+          <button class="bg" data-dd="horiz">HORIZONTAL</button>
+          <button class="bg" data-dd="vert">VERTICAL</button>
+        </div>
+
+        <div style="font-size:10px;color:#333;margin-top:.3rem;letter-spacing:.08em" id="para-stat">no host loaded</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+<script>
+(function(){
+'use strict';
+const PW=48,PH=48,N=PW*PH;
+
+// safe addEventListener — silently skips if element doesn't exist
+function $on(id,ev,fn){const el=document.getElementById(id);if(el)el.addEventListener(ev,fn);}
+function $el(id){return document.getElementById(id);}
+
+
+// ── VALUE NOISE ──────────────────────────────────────────────────
+const NR=256,NM=NR-1,NV=new Float32Array(NR*NR);
+for(let i=0;i<N*NR;i++)NV[i%NV.length]=Math.random()*2-1;
+function s3(t){return t*t*(3-2*t);}
+function lp(a,b,t){return a+t*(b-a);}
+function vn(x,y){
+  const xi=((Math.floor(x)%NR)+NR)&NM,yi=((Math.floor(y)%NR)+NR)&NM;
+  const u=s3(x-Math.floor(x)),v=s3(y-Math.floor(y));
+  return lp(lp(NV[yi*NR+xi],NV[yi*NR+(xi+1&NM)],u),lp(NV[(yi+1&NM)*NR+xi],NV[(yi+1&NM)*NR+(xi+1&NM)],u),v);
+}
+function fbm(x,y){return vn(x,y)*.5+vn(x*2.1,y*2.1)*.25+vn(x*4.3,y*4.3)*.125;}
+
+// ── BAYER MATRICES ───────────────────────────────────────────────
+const B4=[0,8,2,10,12,4,14,6,3,11,1,9,15,7,13,5];
+const B8=[0,32,8,40,2,34,10,42,48,16,56,24,50,18,58,26,12,44,4,36,14,46,6,38,60,28,52,20,62,30,54,22,3,35,11,43,1,33,9,41,51,19,59,27,49,17,57,25,15,47,7,39,13,45,5,37,63,31,55,23,61,29,53,21];
+
+// ── PRESETS ──────────────────────────────────────────────────────
+const PRESET_NAMES=['plasma','noise','mono','heat','radial','checker','hramp','vramp','rings','fbm','rgb','stripe','vignette','diagonal'];
+
+function genPreset(name){
+  const src=new Uint8ClampedArray(N*4);
+  const cx=PW/2,cy=PH/2,mx=Math.max(cx,cy);
+  for(let py=0;py<PH;py++)for(let px=0;px<PW;px++){
+    const i=py*PW+px,nx=px/(PW-1),ny=py/(PH-1);
+    const dx=px-cx,dy=py-cy,d=Math.sqrt(dx*dx+dy*dy)/mx;
+    let r=0,g=0,b=0;
+    if(name==='noise'){r=Math.random()*255|0;g=Math.random()*255|0;b=Math.random()*255|0;}
+    else if(name==='mono'){const v=Math.random()*255|0;r=g=b=v;}
+    else if(name==='heat'){r=nx*255|0;g=Math.max(0,nx*2-1)*255|0;b=Math.max(0,1-nx*2)*255|0;}
+    else if(name==='radial'){const v=(1-d)*255|0;r=v;g=v*.3|0;b=v*.6|0;}
+    else if(name==='checker'){const on=((px/4|0)+(py/4|0))%2;r=g=b=on?220:20;}
+    else if(name==='hramp'){r=nx*255|0;g=nx*140|0;b=(1-nx)*255|0;}
+    else if(name==='vramp'){r=ny*255|0;g=(1-ny)*180|0;b=ny*160+40|0;}
+    else if(name==='rings'){const v=Math.sin(d*Math.PI*7)*.5+.5;r=v*200+55|0;g=(1-v)*180|0;b=Math.sin(d*Math.PI*4)*127+128|0;}
+    else if(name==='plasma'){const v1=Math.sin(px*.35+py*.28),v2=Math.sin(Math.sqrt((px-10)**2+(py-8)**2)*.45),v3=Math.sin((px+py)*.22),val=(v1+v2+v3)/3*.5+.5;r=Math.sin(val*Math.PI*2)*127+128|0;g=Math.sin(val*Math.PI*2+2.09)*127+128|0;b=Math.sin(val*Math.PI*2+4.19)*127+128|0;}
+    else if(name==='fbm'){r=(fbm(px*.18,py*.18)*.5+.5)*255|0;g=(fbm(px*.18+40,py*.18+20)*.5+.5)*255|0;b=(fbm(px*.18+80,py*.18+60)*.5+.5)*255|0;}
+    else if(name==='rgb'){const col=px/(PW/3)|0;r=col===0?200:20;g=col===1?200:20;b=col===2?200:20;}
+    else if(name==='stripe'){const on=(py%8)<4;r=on?220:30;g=on?30:180;b=on?80:220;}
+    else if(name==='vignette'){const v=(1-d*d)*255|0;r=v*.9|0;g=v*.75|0;b=v;}
+    else if(name==='diagonal'){const t=(nx+ny)/2;r=t*255|0;g=(1-t)*180|0;b=Math.sin(t*Math.PI)*255|0;}
+    src[i*4]=r;src[i*4+1]=g;src[i*4+2]=b;src[i*4+3]=255;
+  }
+  return src;
+}
+
+// ── OFF-SCREEN CANVAS (scale source to 48x48) ────────────────────
+const ofc=document.createElement('canvas');ofc.width=PW;ofc.height=PH;
+const ofx=ofc.getContext('2d',{willReadFrequently:true});
+
+let srcPixels=null; // Uint8ClampedArray N*4
+
+function loadFromImage(img){
+  ofx.drawImage(img,0,0,PW,PH);
+  const id=ofx.getImageData(0,0,PW,PH);
+  srcPixels=id.data;
+  renderSrcPreview();
+}
+
+function setPreset(name){
+  srcPixels=genPreset(name);
+  renderSrcPreview();
+  document.getElementById('src-st').textContent='preset: '+name;
+  document.getElementById('src-st').className='st ok';
+}
+
+function renderSrcPreview(){
+  const fc=document.getElementById('src-frame');
+  fc.innerHTML='';
+  const cv=document.createElement('canvas');cv.width=PW;cv.height=PH;
+  cv.style.cssText='width:100%;height:100%;image-rendering:pixelated;display:block;';
+  const cx2=cv.getContext('2d');
+  const id=cx2.createImageData(PW,PH);
+  id.data.set(srcPixels);
+  cx2.putImageData(id,0,0);
+  fc.appendChild(cv);
+  document.getElementById('src-info').textContent='48×48 · '+N+' pixels';
+}
+
+// ── TRANSFORM ENGINE ─────────────────────────────────────────────
+let txMode='none',txThresh=.5,txNoise=0,txP1=.5,txP2=.5;
+let keepColor=false,invertDith=false;
+let dithData=null; // Uint8ClampedArray N*3
+
+function gray(r,g,b){return r*.299+g*.587+b*.114;}
+
+// 3×3 kernel convolution on RGB channels
+function convolve(src,kern,scale,bias){
+  const out=new Uint8ClampedArray(N*3);
+  for(let py=0;py<PH;py++) for(let px=0;px<PW;px++){
+    let sr=0,sg=0,sb=0,ki=0;
+    for(let dy=-1;dy<=1;dy++) for(let dx=-1;dx<=1;dx++){
+      const sy=Math.min(PH-1,Math.max(0,py+dy)),sx=Math.min(PW-1,Math.max(0,px+dx));
+      const si=(sy*PW+sx)*4,k=kern[ki++];
+      sr+=src[si]*k;sg+=src[si+1]*k;sb+=src[si+2]*k;
+    }
+    const i=py*PW+px;
+    out[i*3]=Math.min(255,Math.max(0,sr*scale+bias));
+    out[i*3+1]=Math.min(255,Math.max(0,sg*scale+bias));
+    out[i*3+2]=Math.min(255,Math.max(0,sb*scale+bias));
+  }
+  return out;
+}
+
+function runDither(){
+  if(!srcPixels){setPreset('plasma');return;}
+  const s=srcPixels;
+  let out=new Uint8ClampedArray(N*3);
+  const clamp=(v)=>Math.min(255,Math.max(0,v|0));
+
+  // ── pass-through ──────────────────────────────────────────────
+  if(txMode==='none'){
+    for(let i=0;i<N;i++){out[i*3]=s[i*4];out[i*3+1]=s[i*4+1];out[i*3+2]=s[i*4+2];}
+  }
+  // ── greyscale ────────────────────────────────────────────────
+  else if(txMode==='grey'){
+    for(let i=0;i<N;i++){const g2=gray(s[i*4],s[i*4+1],s[i*4+2])|0;out[i*3]=out[i*3+1]=out[i*3+2]=g2;}
+  }
+  // ── invert ───────────────────────────────────────────────────
+  else if(txMode==='invert'){
+    for(let i=0;i<N;i++){out[i*3]=255-s[i*4];out[i*3+1]=255-s[i*4+1];out[i*3+2]=255-s[i*4+2];}
+  }
+  // ── threshold ────────────────────────────────────────────────
+  else if(txMode==='thresh'){
+    const t=txThresh*255;
+    for(let i=0;i<N;i++){
+      if(keepColor){const g2=gray(s[i*4],s[i*4+1],s[i*4+2]),m=(g2>=t?255:0)/Math.max(1,g2);out[i*3]=clamp(s[i*4]*m);out[i*3+1]=clamp(s[i*4+1]*m);out[i*3+2]=clamp(s[i*4+2]*m);}
+      else{const q=gray(s[i*4],s[i*4+1],s[i*4+2])>=t?255:0;out[i*3]=out[i*3+1]=out[i*3+2]=q;}
+    }
+  }
+  // ── dithers (FS, Atkinson, Bayer, Random) ────────────────────
+  else if(['fs','atkinson','bayer4','bayer8','rand'].includes(txMode)){
+    const tmp=new Float32Array(N);
+    for(let i=0;i<N;i++) tmp[i]=gray(s[i*4],s[i*4+1],s[i*4+2]);
+    if(txMode==='fs'||txMode==='atkinson'){
+      const err=new Float32Array(N);
+      for(let py=0;py<PH;py++) for(let px=0;px<PW;px++){
+        const i=py*PW+px;
+        const v=Math.min(255,Math.max(0,tmp[i]+err[i]));
+        const q=v>=(txThresh*255)?255:0;const e=v-q;tmp[i]=q;
+        if(txMode==='fs'){if(px+1<PW)err[i+1]+=e*7/16;if(py+1<PH){if(px>0)err[i+PW-1]+=e*3/16;err[i+PW]+=e*5/16;if(px+1<PW)err[i+PW+1]+=e/16;}}
+        else{const e2=e/8;if(px+1<PW)err[i+1]+=e2;if(px+2<PW)err[i+2]+=e2;if(py+1<PH){if(px>0)err[i+PW-1]+=e2;err[i+PW]+=e2;if(px+1<PW)err[i+PW+1]+=e2;}if(py+2<PH)err[i+PW*2]+=e2;}
+      }
+      for(let i=0;i<N;i++){if(keepColor){const og=Math.max(1,gray(s[i*4],s[i*4+1],s[i*4+2])),m=tmp[i]/og;out[i*3]=clamp(s[i*4]*m);out[i*3+1]=clamp(s[i*4+1]*m);out[i*3+2]=clamp(s[i*4+2]*m);}else{out[i*3]=out[i*3+1]=out[i*3+2]=tmp[i];}}
+    } else {
+      for(let py=0;py<PH;py++) for(let px=0;px<PW;px++){
+        const i=py*PW+px,g2=tmp[i]/255;
+        let bv=txThresh;
+        if(txMode==='bayer4')bv=B4[(py%4)*4+(px%4)]/16;
+        else if(txMode==='bayer8')bv=B8[(py%8)*8+(px%8)]/64;
+        else if(txMode==='rand')bv=Math.random()*(1-txNoise*.5)+txNoise*.25;
+        const q=(g2>bv+txNoise*(Math.random()-.5))?255:0;
+        if(keepColor){const og=Math.max(1,gray(s[i*4],s[i*4+1],s[i*4+2])),m=q/og;out[i*3]=clamp(s[i*4]*m);out[i*3+1]=clamp(s[i*4+1]*m);out[i*3+2]=clamp(s[i*4+2]*m);}
+        else{out[i*3]=out[i*3+1]=out[i*3+2]=q;}
+      }
+    }
+  }
+  // ── posterize ────────────────────────────────────────────────
+  else if(txMode==='posterize'){
+    const steps=Math.max(2,Math.round(txP1*7)+2); // 2..9 levels
+    const step=255/(steps-1);
+    for(let i=0;i<N;i++){out[i*3]=clamp(Math.round(s[i*4]/step)*step);out[i*3+1]=clamp(Math.round(s[i*4+1]/step)*step);out[i*3+2]=clamp(Math.round(s[i*4+2]/step)*step);}
+  }
+  // ── solarize ─────────────────────────────────────────────────
+  else if(txMode==='solarize'){
+    const t2=txP1*255;
+    for(let i=0;i<N;i++){out[i*3]=s[i*4]<t2?s[i*4]:255-s[i*4];out[i*3+1]=s[i*4+1]<t2?s[i*4+1]:255-s[i*4+1];out[i*3+2]=s[i*4+2]<t2?s[i*4+2]:255-s[i*4+2];}
+  }
+  // ── edge detect (Sobel) ──────────────────────────────────────
+  else if(txMode==='edge'){
+    const gx=[-1,0,1,-2,0,2,-1,0,1],gy=[-1,-2,-1,0,0,0,1,2,1];
+    const cx2=convolve(s,gx,1,0),cy2=convolve(s,gy,1,0);
+    const sc=txP1*3+0.5;
+    for(let i=0;i<N;i++){out[i*3]=clamp(Math.sqrt(cx2[i*3]**2+cy2[i*3]**2)*sc);out[i*3+1]=clamp(Math.sqrt(cx2[i*3+1]**2+cy2[i*3+1]**2)*sc);out[i*3+2]=clamp(Math.sqrt(cx2[i*3+2]**2+cy2[i*3+2]**2)*sc);}
+  }
+  // ── emboss ───────────────────────────────────────────────────
+  else if(txMode==='emboss'){
+    const k=[-2,-1,0,-1,1,1,0,1,2];
+    out=convolve(s,k,txP1*2+0.5,128);
+  }
+  // ── blur (box) ───────────────────────────────────────────────
+  else if(txMode==='blur'){
+    const passes=Math.round(txP1*5)+1;
+    let cur=new Uint8ClampedArray(s);
+    for(let p=0;p<passes;p++){
+      const k=[1/9,1/9,1/9,1/9,1/9,1/9,1/9,1/9,1/9];
+      const tmp2=convolve(cur,k,1,0);
+      // tmp2 is N*3, pack back to N*4
+      const tmp3=new Uint8ClampedArray(N*4);
+      for(let i=0;i<N;i++){tmp3[i*4]=tmp2[i*3];tmp3[i*4+1]=tmp2[i*3+1];tmp3[i*4+2]=tmp2[i*3+2];tmp3[i*4+3]=255;}
+      cur=tmp3;
+    }
+    for(let i=0;i<N;i++){out[i*3]=cur[i*4];out[i*3+1]=cur[i*4+1];out[i*3+2]=cur[i*4+2];}
+  }
+  // ── sharpen ──────────────────────────────────────────────────
+  else if(txMode==='sharpen'){
+    const am=txP1*3+0.5;
+    const k=[0,-am,0,-am,1+4*am,-am,0,-am,0];
+    out=convolve(s,k,1,0);
+  }
+  // ── pixelate ─────────────────────────────────────────────────
+  else if(txMode==='pixelate'){
+    const blk=Math.max(2,Math.round(txP1*10)+2);
+    for(let py=0;py<PH;py++) for(let px=0;px<PW;px++){
+      const bx=Math.floor(px/blk)*blk,by=Math.floor(py/blk)*blk;
+      const bi=by*PW+bx;
+      const i=py*PW+px;
+      out[i*3]=s[bi*4];out[i*3+1]=s[bi*4+1];out[i*3+2]=s[bi*4+2];
+    }
+  }
+  // ── channel shift ────────────────────────────────────────────
+  else if(txMode==='channelshift'){
+    const sh=Math.round(txP1*12)-6;
+    const sh2=Math.round(txP2*12)-6;
+    for(let py=0;py<PH;py++) for(let px=0;px<PW;px++){
+      const i=py*PW+px;
+      const rxi=Math.min(PW-1,Math.max(0,px+sh)),ryi=py;
+      const bxi=Math.min(PW-1,Math.max(0,px+sh2)),byi=Math.min(PH-1,Math.max(0,py+sh2));
+      out[i*3]=s[(ryi*PW+rxi)*4];
+      out[i*3+1]=s[i*4+1];
+      out[i*3+2]=s[(byi*PW+bxi)*4+2];
+    }
+  }
+  // ── hue rotate ───────────────────────────────────────────────
+  else if(txMode==='hue'){
+    const angle=txP1*Math.PI*2;
+    const cos=Math.cos(angle),sin=Math.sin(angle);
+    const m=[[.213+cos*.787-sin*.213, .213-cos*.213+sin*.143, .213-cos*.213-sin*.787],
+              [.715-cos*.715-sin*.715, .715+cos*.285+sin*.140, .715-cos*.715+sin*.715],
+              [.072-cos*.072+sin*.928, .072-cos*.072-sin*.283, .072+cos*.928+sin*.072]];
+    for(let i=0;i<N;i++){
+      const r2=s[i*4],g2=s[i*4+1],b2=s[i*4+2];
+      out[i*3]=clamp(r2*m[0][0]+g2*m[1][0]+b2*m[2][0]);
+      out[i*3+1]=clamp(r2*m[0][1]+g2*m[1][1]+b2*m[2][1]);
+      out[i*3+2]=clamp(r2*m[0][2]+g2*m[1][2]+b2*m[2][2]);
+    }
+  }
+  // ── contrast / brightness ────────────────────────────────────
+  else if(txMode==='contrast'){
+    const cf=(txP1*4+0.1),bf=(txP2-0.5)*200;
+    for(let i=0;i<N;i++){out[i*3]=clamp((s[i*4]-128)*cf+128+bf);out[i*3+1]=clamp((s[i*4+1]-128)*cf+128+bf);out[i*3+2]=clamp((s[i*4+2]-128)*cf+128+bf);}
+  }
+  // ── add noise ────────────────────────────────────────────────
+  else if(txMode==='noise'){
+    const amt=txP1*128;
+    for(let i=0;i<N;i++){const n=(Math.random()-.5)*amt;out[i*3]=clamp(s[i*4]+n);out[i*3+1]=clamp(s[i*4+1]+n);out[i*3+2]=clamp(s[i*4+2]+n);}
+  }
+  // ── quantize RGB ─────────────────────────────────────────────
+  else if(txMode==='quantize'){
+    const bits=Math.max(1,Math.round(txP1*7)+1); // 1..8 bit per channel
+    const step=Math.round(256/Math.pow(2,bits));
+    for(let i=0;i<N;i++){out[i*3]=clamp(Math.floor(s[i*4]/step)*step);out[i*3+1]=clamp(Math.floor(s[i*4+1]/step)*step);out[i*3+2]=clamp(Math.floor(s[i*4+2]/step)*step);}
+  }
+
+  if(invertDith) for(let i=0;i<N*3;i++) out[i]=255-out[i];
+  dithData=out;
+
+  // draw to canvas
+  const cv=document.getElementById('dith-cv');
+  const ctx=cv.getContext('2d');
+  const id=ctx.createImageData(PW,PH);
+  for(let i=0;i<N;i++){id.data[i*4]=out[i*3];id.data[i*4+1]=out[i*3+1];id.data[i*4+2]=out[i*3+2];id.data[i*4+3]=255;}
+  ctx.putImageData(id,0,0);
+  document.getElementById('dith-st').textContent=txMode+' · '+N+' px';
+  showPx(0,0);
+}
+
+function showPx(px,py){
+  if(!dithData)return;
+  const i=py*PW+px;
+  const r=dithData[i*3],g2=dithData[i*3+1],b=dithData[i*3+2];
+  document.getElementById('pv-r').textContent=r;
+  document.getElementById('pv-g').textContent=g2;
+  document.getElementById('pv-b').textContent=b;
+  document.getElementById('pv-x').textContent=px;
+  document.getElementById('pv-y').textContent=py;
+  const pb=document.getElementById('pband');
+  pb.innerHTML=`<div style="flex:${r+1};height:5px;background:rgb(${r},0,0)"></div><div style="flex:${g2+1};height:5px;background:rgb(0,${g2},0)"></div><div style="flex:${b+1};height:5px;background:rgb(0,0,${b})"></div>`;
+}
+
+// ── PIXEL MATRIX ─────────────────────────────────────────────────
+let pixMat=[]; // [{r,g,b,x,y}]
+function buildPixMat(){
+  pixMat=[];
+  for(let py=0;py<PH;py++)for(let px=0;px<PW;px++){
+    const i=py*PW+px;
+    pixMat.push({r:dithData?dithData[i*3]:128,g:dithData?dithData[i*3+1]:128,b:dithData?dithData[i*3+2]:128,x:px,y:py});
+  }
+}
+
+// ── PARTICLES ────────────────────────────────────────────────────
+let particles=[];
+function buildParticles(){
+  buildPixMat();
+  particles=pixMat.map(px=>({
+    r:px.r,g:px.g,b:px.b,
+    ox:px.x,oy:px.y,hx:px.x+.5,hy:px.y+.5,
+    x:px.x+.5+(Math.random()-.5)*6,y:px.y+.5+(Math.random()-.5)*6,
+    vx:(Math.random()-.5)*.4,vy:(Math.random()-.5)*.4,
+    ph:Math.random()*Math.PI*2,mass:.5+Math.random()*.8,
+    nox:Math.random()*200,noy:Math.random()*200,seg:0,
+  }));
+}
+
+// ── SEGMENTS ─────────────────────────────────────────────────────
+let segType='none',segs=[];
+function buildSegs(){
+  let defs=[];
+  const S=segType;
+  if(S==='none')defs=[{xMin:0,xMax:PW,yMin:0,yMax:PH}];
+  else if(S==='c2')for(let i=0;i<2;i++)defs.push({xMin:i*PW/2,xMax:(i+1)*PW/2,yMin:0,yMax:PH});
+  else if(S==='c4')for(let i=0;i<4;i++)defs.push({xMin:i*PW/4,xMax:(i+1)*PW/4,yMin:0,yMax:PH});
+  else if(S==='c8')for(let i=0;i<8;i++)defs.push({xMin:i*PW/8,xMax:(i+1)*PW/8,yMin:0,yMax:PH});
+  else if(S==='r2')for(let i=0;i<2;i++)defs.push({xMin:0,xMax:PW,yMin:i*PH/2,yMax:(i+1)*PH/2});
+  else if(S==='r4')for(let i=0;i<4;i++)defs.push({xMin:0,xMax:PW,yMin:i*PH/4,yMax:(i+1)*PH/4});
+  else if(S==='g4')for(let r=0;r<2;r++)for(let c=0;c<2;c++)defs.push({xMin:c*PW/2,xMax:(c+1)*PW/2,yMin:r*PH/2,yMax:(r+1)*PH/2});
+  else if(S==='g16')for(let r=0;r<4;r++)for(let c=0;c<4;c++)defs.push({xMin:c*PW/4,xMax:(c+1)*PW/4,yMin:r*PH/4,yMax:(r+1)*PH/4});
+  segs=defs.map((d,id)=>({...d,id,cx:(d.xMin+d.xMax)/2,cy:(d.yMin+d.yMax)/2,particles:[],phase:Math.random()*Math.PI*2,freq:.7+id*.06}));
+  for(const sg of segs)sg.particles=[];
+  for(const p of particles){
+    let placed=false;
+    for(const sg of segs){if(p.ox>=sg.xMin&&p.ox<sg.xMax&&p.oy>=sg.yMin&&p.oy<sg.yMax){sg.particles.push(p);p.seg=sg.id;placed=true;break;}}
+    if(!placed){segs[0].particles.push(p);p.seg=0;}
+  }
+}
+
+// ── PHYSICS ──────────────────────────────────────────────────────
+let simMode='FLOW';
+const SIMMODES=['FLOW','VORTEX','WAVE','SCATTER','FORMATION','CASCADE','ORBIT','BREATHE'];
+const PP={speed:1,force:1,damping:.88,ret:.06,turb:.6,phSp:1,size:1,bri:.9,trail:.12};
+
+function updateP(p,sg,t){
+  const F=PP.force,T=PP.turb;
+  const sx=sg.xMin,ex=sg.xMax,sy=sg.yMin,ey=sg.yMax;
+  switch(simMode){
+    case'FLOW':{const ax=fbm(p.x*.16+t*.0005,p.y*.16+sg.phase)*T,ay=fbm(p.x*.16+100+t*.0004,p.y*.16+sg.phase+50)*T,ang=(ax+ay)*Math.PI*3;p.vx+=Math.cos(ang)*.35*F;p.vy+=Math.sin(ang)*.35*F;p.vx+=(p.hx-p.x)*PP.ret*.08;p.vy+=(p.hy-p.y)*PP.ret*.08;break;}
+    case'VORTEX':{const dx=p.x-sg.cx,dy=p.y-sg.cy,d=Math.sqrt(dx*dx+dy*dy)||.001;p.vx+=-dy/d*F*.12*sg.freq;p.vy+=dx/d*F*.12*sg.freq;p.vx-=dx*.015;p.vy-=dy*.015;p.vx+=fbm(p.nox+t*.001,p.noy)*T*.4;p.vy+=fbm(p.nox+60,p.noy+t*.001)*T*.4;break;}
+    case'WAVE':{const wt=t*.018*sg.freq*PP.phSp+sg.phase;p.vx+=(p.hx+Math.sin(p.oy*.28+wt)*F*2.2-p.x)*.22;p.vy+=(p.hy+Math.cos(p.ox*.38+wt*.7)*F*1.1-p.y)*.22;break;}
+    case'SCATTER':{const dx=p.x-p.hx,dy=p.y-p.hy,d=Math.sqrt(dx*dx+dy*dy)||.001;p.vx+=dx/d*F*.15;p.vy+=dy/d*F*.15;if(p.x<sx)p.vx+=.5;if(p.x>ex)p.vx-=.5;if(p.y<sy)p.vy+=.5;if(p.y>ey)p.vy-=.5;p.vx+=fbm(p.nox+t*.0007,p.noy)*T*.5;p.vy+=fbm(p.noy+t*.0006,p.nox)*T*.5;break;}
+    case'FORMATION':{p.vx+=(p.hx-p.x)*PP.ret*.5*F;p.vy+=(p.hy-p.y)*PP.ret*.5*F;p.vx+=fbm(p.nox+t*.0015,p.noy)*T*.35;p.vy+=fbm(p.nox+80,p.noy+t*.0015)*T*.35;break;}
+    case'CASCADE':{p.vy+=.05*F;p.vx+=fbm(p.x*.2+t*.003,p.nox*.01)*T*.4;if(p.y>ey+1){p.y=sy-1;p.x=p.hx+(Math.random()-.5)*(ex-sx);p.vx=0;p.vy=.2;}if(p.x<sx){p.x=sx;p.vx=Math.abs(p.vx);}if(p.x>ex){p.x=ex;p.vx=-Math.abs(p.vx);}break;}
+    case'ORBIT':{const hdx=p.ox-sg.cx,hdy=p.oy-sg.cy,orR=Math.sqrt(hdx*hdx+hdy*hdy)*.22*(0.5+F*.5),ang2=Math.atan2(hdy,hdx)+t*.014*sg.freq*PP.phSp;p.vx+=(sg.cx+Math.cos(ang2)*(orR+.3)-p.x)*.08*F;p.vy+=(sg.cy+Math.sin(ang2)*(orR+.3)-p.y)*.08*F;break;}
+    case'BREATHE':{const pulse=Math.sin(t*.018*sg.freq*PP.phSp+p.ph),dx=p.hx-sg.cx,dy=p.hy-sg.cy,d=Math.sqrt(dx*dx+dy*dy)||.001,sz2=Math.max(ex-sx,ey-sy)*.4;p.vx+=(sg.cx+dx/d*pulse*F*sz2-p.x)*.12;p.vy+=(sg.cy+dy/d*pulse*F*sz2-p.y)*.12;break;}
+  }
+  p.vx*=PP.damping;p.vy*=PP.damping;
+  const v=Math.sqrt(p.vx*p.vx+p.vy*p.vy),mv=6*PP.speed;
+  if(v>mv){p.vx=p.vx/v*mv;p.vy=p.vy/v*mv;}
+  p.x+=p.vx*PP.speed;p.y+=p.vy*PP.speed;
+}
+
+// ── RENDERING ────────────────────────────────────────────────────
+let rendMode='dot';
+
+function drawFrame(ctx,t,dxBuf,dyBuf){
+  ctx.fillStyle='rgba(0,0,0,'+PP.trail+')';
+  ctx.fillRect(0,0,PW,PH);
+  const sz=PP.size*.8,br=PP.bri;
+  for(const p of particles){
+    const idx=p.oy*PW+p.ox;
+    const px=p.x+(dxBuf?dxBuf[idx]:0),py=p.y+(dyBuf?dyBuf[idx]:0);
+    const a=Math.min(1,.6+.4*Math.sin(t*.02*PP.phSp+p.ph));
+    const r=p.r*br|0,g2=p.g*br|0,b=p.b*br|0;
+    ctx.globalAlpha=a;
+    if(rendMode==='dot'){ctx.fillStyle='rgb('+r+','+g2+','+b+')';ctx.beginPath();ctx.arc(px,py,sz*.45,0,Math.PI*2);ctx.fill();}
+    else if(rendMode==='sq'){ctx.fillStyle='rgb('+r+','+g2+','+b+')';ctx.fillRect(px-sz*.4,py-sz*.4,sz*.8,sz*.8);}
+    else if(rendMode==='ln'){ctx.strokeStyle='rgb('+r+','+g2+','+b+')';ctx.lineWidth=sz*.3;ctx.beginPath();ctx.moveTo(px,py);ctx.lineTo(p.hx,p.hy);ctx.stroke();}
+    else if(rendMode==='cr'){ctx.strokeStyle='rgb('+r+','+g2+','+b+')';ctx.lineWidth=sz*.25;ctx.beginPath();ctx.moveTo(px-sz*.4,py);ctx.lineTo(px+sz*.4,py);ctx.moveTo(px,py-sz*.4);ctx.lineTo(px,py+sz*.4);ctx.stroke();}
+    else{if(r>127||g2>127||b>127){ctx.fillStyle='rgb('+r+','+g2+','+b+')';ctx.fillRect(px|0,py|0,1,1);}}
+  }
+  ctx.globalAlpha=1;
+}
+
+// ── POST FX ──────────────────────────────────────────────────────
+let postMode='none';
+function applyPost(ctx,intensity){
+  if(postMode==='none')return;
+  const w=PW,h=PH;
+  if(postMode==='scan'){ctx.save();ctx.globalAlpha=.25*intensity;ctx.fillStyle='#000';for(let y=0;y<h;y+=2)ctx.fillRect(0,y,w,1);ctx.restore();}
+  else if(postMode==='crt'){ctx.save();ctx.globalAlpha=.2*intensity;ctx.fillStyle='#000';for(let y=0;y<h;y+=2)ctx.fillRect(0,y,w,1);const grd=ctx.createRadialGradient(w/2,h/2,0,w/2,h/2,w*.7);grd.addColorStop(0,'rgba(0,0,0,0)');grd.addColorStop(1,'rgba(0,0,0,'+.5*intensity+')');ctx.globalAlpha=1;ctx.fillStyle=grd;ctx.fillRect(0,0,w,h);ctx.restore();}
+  else if(postMode==='inv'){ctx.save();ctx.globalCompositeOperation='difference';ctx.fillStyle='rgba(255,255,255,'+Math.min(1,intensity)+')';ctx.fillRect(0,0,w,h);ctx.restore();}
+  else if(postMode==='bw'){const id=ctx.getImageData(0,0,w,h);for(let i=0;i<id.data.length;i+=4){const g3=id.data[i]*.3+id.data[i+1]*.59+id.data[i+2]*.11;id.data[i]=id.data[i]*(1-intensity)+g3*intensity;id.data[i+1]=id.data[i+1]*(1-intensity)+g3*intensity;id.data[i+2]=id.data[i+2]*(1-intensity)+g3*intensity;}ctx.putImageData(id,0,0);}
+}
+
+// ── CURSOR DEFORM ────────────────────────────────────────────────
+let dxBuf=new Float32Array(N),dyBuf=new Float32Array(N),dvxBuf=new Float32Array(N),dvyBuf=new Float32Array(N);
+const mouse={gx:0,gy:0,vx:0,vy:0,over:false};
+let defOn=true,rgbOn=true,defRad=.3,defStr=1,postInt=.6;
+
+function updateDeform(){
+  for(let i=0;i<N;i++){dvxBuf[i]=dvxBuf[i]*.88-dxBuf[i]*.04;dvyBuf[i]=dvyBuf[i]*.88-dyBuf[i]*.04;dxBuf[i]+=dvxBuf[i];dyBuf[i]+=dvyBuf[i];}
+  if(!mouse.over)return;
+  const mr=defRad*PH,mr2=mr*mr,spd=Math.sqrt(mouse.vx*mouse.vx+mouse.vy*mouse.vy);
+  if(spd<.01)return;
+  for(const p of particles){
+    const idx=p.oy*PW+p.ox,ddx=p.ox-mouse.gx,ddy=p.oy-mouse.gy,d2=ddx*ddx+ddy*ddy;
+    if(d2<mr2){const d=Math.sqrt(d2)||.001,fo=(1-d/mr);dvxBuf[idx]+=mouse.vx/spd*fo*fo*defStr*Math.min(spd,8)*.08;dvyBuf[idx]+=mouse.vy/spd*fo*fo*defStr*Math.min(spd,8)*.08;}
+  }
+  mouse.vx*=.7;mouse.vy*=.7;
+}
+
+// ── MAIN CANVAS ──────────────────────────────────────────────────
+const mainCv=document.getElementById('main-cv');
+const mainCtx=mainCv.getContext('2d');
+
+// ── GRID: 10 sim types × 10 property variation rows ──────────────
+// Columns = simulation modes, Rows = property variations
+// All cells run at gentle speeds, no post FX
+const GRID_MODES=['FLOW','VORTEX','WAVE','SCATTER','FORMATION','CASCADE','ORBIT','BREATHE','FLOW','WAVE'];
+// Row = parameter variation: [speed, force, damping, turbulence, size, brightness, trail, phSp, rendMode, colorShift]
+const GRID_VARS=[
+  {spd:.15,force:.6, damp:.92,turb:.3, sz:.7, bri:.9, tr:.18,phSp:.4,rend:'dot', cs:0  },
+  {spd:.20,force:.7, damp:.90,turb:.5, sz:.9, bri:.85,tr:.14,phSp:.6,rend:'dot', cs:20 },
+  {spd:.25,force:.8, damp:.90,turb:.7, sz:1.0,bri:.85,tr:.12,phSp:.8,rend:'dot', cs:40 },
+  {spd:.30,force:.9, damp:.88,turb:.9, sz:1.0,bri:.8, tr:.10,phSp:1.0,rend:'sq', cs:60 },
+  {spd:.18,force:.65,damp:.91,turb:.4, sz:.8, bri:.9, tr:.20,phSp:.5,rend:'sq', cs:80 },
+  {spd:.22,force:.75,damp:.89,turb:.6, sz:1.1,bri:.75,tr:.08,phSp:.7,rend:'ln', cs:120 },
+  {spd:.28,force:.85,damp:.87,turb:.8, sz:.9, bri:.8, tr:.15,phSp:.9,rend:'ln', cs:160 },
+  {spd:.12,force:.5, damp:.94,turb:.2, sz:.6, bri:.95,tr:.25,phSp:.3,rend:'cr', cs:200 },
+  {spd:.35,force:1.0,damp:.86,turb:1.0,sz:1.2,bri:.7, tr:.06,phSp:1.2,rend:'cr', cs:240 },
+  {spd:.16,force:.6, damp:.93,turb:.35,sz:.75,bri:.9, tr:.22,phSp:.45,rend:'mn',cs:280 },
+];
+let gridOcs=[],gridReady=false;
+
+function initGridSims(){
+  document.getElementById('grid-area').innerHTML='';
+  gridOcs=[];
+  // one offscreen per column (sim mode)
+  for(let s=0;s<10;s++){
+    const oc=document.createElement('canvas');oc.width=PW;oc.height=PH;
+    const ctx=oc.getContext('2d');
+    ctx.fillStyle='#000';ctx.fillRect(0,0,PW,PH);
+    const pts=pixMat.map(px=>({
+      ...px,hx:px.x+.5,hy:px.y+.5,
+      x:px.x+.5+(Math.random()-.5)*4,y:px.y+.5+(Math.random()-.5)*4,
+      vx:(Math.random()-.5)*.2,vy:(Math.random()-.5)*.2,
+      ph:Math.random()*Math.PI*2,mass:.5+Math.random()*.8,
+      nox:Math.random()*200,noy:Math.random()*200,seg:0,
+    }));
+    const sg={id:0,xMin:0,xMax:PW,yMin:0,yMax:PH,cx:PW/2,cy:PH/2,particles:pts,phase:s*Math.PI*2/10,freq:.6+s*.05};
+    sg.particles=pts;
+    gridOcs.push({canvas:oc,ctx,sg,pts,mode:GRID_MODES[s]});
+  }
+  // 100 display canvases (10 rows × 10 cols, row = variation, col = sim mode)
+  for(let i=0;i<100;i++){
+    const cv=document.createElement('canvas');cv.width=PW;cv.height=PH;
+    document.getElementById('grid-area').appendChild(cv);
+  }
+  gridReady=true;
+}
+
+function updateGrid(t){
+  const savedMode=simMode;
+  // update each column sim with its variation params applied as gentle overrides
+  for(let s=0;s<10;s++){
+    const {ctx,sg,pts,mode}=gridOcs[s];
+    simMode=mode;
+    // use the column's variation (varies by row later for rendering, physics uses col variation)
+    const cv=GRID_VARS[s];
+    const savedPP={...PP};
+    PP.speed=cv.spd;PP.force=cv.force;PP.damping=cv.damp;PP.turb=cv.turb;PP.phSp=cv.phSp;
+    for(const p of pts)updateP(p,sg,t);
+    // render to offscreen with this col's visual params
+    ctx.fillStyle='rgba(0,0,0,'+cv.tr+')';ctx.fillRect(0,0,PW,PH);
+    const sz=cv.sz*.8,br=cv.bri;
+    const rv=cv.rend;
+    ctx.globalAlpha=1;
+    for(const p of pts){
+      const a=Math.min(1,.55+.4*Math.sin(t*.02*cv.phSp+p.ph));
+      ctx.globalAlpha=a;
+      // color shift by hue offset (apply as css filter on display canvas)
+      const r=p.r*br|0,g2=p.g*br|0,b=p.b*br|0;
+      ctx.fillStyle='rgb('+r+','+g2+','+b+')';
+      ctx.strokeStyle='rgb('+r+','+g2+','+b+')';
+      if(rv==='dot'){ctx.beginPath();ctx.arc(p.x,p.y,sz*.45,0,Math.PI*2);ctx.fill();}
+      else if(rv==='sq'){ctx.fillRect(p.x-sz*.4,p.y-sz*.4,sz*.8,sz*.8);}
+      else if(rv==='ln'){ctx.lineWidth=sz*.3;ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(p.hx,p.hy);ctx.stroke();}
+      else if(rv==='cr'){ctx.lineWidth=sz*.25;ctx.beginPath();ctx.moveTo(p.x-sz*.4,p.y);ctx.lineTo(p.x+sz*.4,p.y);ctx.moveTo(p.x,p.y-sz*.4);ctx.lineTo(p.x,p.y+sz*.4);ctx.stroke();}
+      else if(r>100||g2>100||b>100){ctx.fillRect(p.x|0,p.y|0,1,1);}
+    }
+    ctx.globalAlpha=1;
+    Object.assign(PP,savedPP);
+  }
+  simMode=savedMode;
+  // blit columns to display cells, rows apply hue-rotate variation
+  const cells=document.getElementById('grid-area').children;
+  for(let row=0;row<10;row++){
+    const hue=GRID_VARS[row].cs;
+    const filt=hue===0?'none':'hue-rotate('+hue+'deg)';
+    for(let col=0;col<10;col++){
+      const cv2=cells[row*10+col];
+      const ctx2=cv2.getContext('2d');
+      ctx2.filter=filt;
+      ctx2.drawImage(gridOcs[col].canvas,0,0);
+      ctx2.filter='none';
+    }
+  }
+}
+
+// ── MAIN LOOP ────────────────────────────────────────────────────
+let tick=0,paused=false,lastFps=0,fpsF=0;
+
+function loop(ts){
+  fpsF++;
+  if(ts-lastFps>=1000){
+    document.getElementById('fps-top').textContent=fpsF+'fps';
+    document.getElementById('fps2').textContent=fpsF+'fps';
+    fpsF=0;lastFps=ts;
+  }
+  if(!paused&&particles.length>0){
+    tick++;
+    if(defOn)updateDeform();
+    const vm=document.body.className;
+    if(vm==='vgrid'&&gridReady){
+      updateGrid(tick);
+    } else {
+      for(const sg of segs)for(const p of sg.particles)updateP(p,sg,tick);
+      drawFrame(mainCtx,tick,defOn?dxBuf:null,defOn?dyBuf:null);
+      applyPost(mainCtx,postInt);
+    }
+    // parasite runs every frame (or gated by sync toggle)
+    if(paraHostLoaded&&(!paraSyncOn||(tick%2===0))){
+      stepParasite();
+    }
+  }
+  requestAnimationFrame(loop);
+}
+
+// ── VIEW ─────────────────────────────────────────────────────────
+let fullPxSize=10; // pixels per 48-grid-cell in full mode
+
+function applyFullSize(){
+  const sz=fullPxSize*PW; // total canvas size in CSS px
+  mainCv.style.width=sz+'px';
+  mainCv.style.height=sz+'px';
+}
+
+function setView(v){
+  document.body.className=v==='11'?'v11':v==='grid'?'vgrid':'vfull';
+  ['11','grid','full'].forEach(x=>document.getElementById('vb-'+x).classList.toggle('on',x===v));
+  if(v==='grid'&&particles.length>0){buildPixMat();initGridSims();}
+  if(v==='full') applyFullSize();
+  if(v==='11'){mainCv.style.width='480px';mainCv.style.height='480px';}
+}
+
+// ── STEP NAVIGATION ──────────────────────────────────────────────
+function gotoStep(s){
+  document.querySelectorAll('.step').forEach(el=>el.classList.remove('on'));
+  document.querySelectorAll('.stb').forEach(b=>b.classList.remove('on'));
+  document.getElementById('step-'+s).classList.add('on');
+  document.querySelector('.stb[data-s="'+s+'"]').classList.add('on');
+  if(s==='b'){if(!srcPixels){setPreset('plasma');}updateTxUI(txMode);runDither();}
+  if(s==='c'){runDither();buildParticles();buildSegs();dxBuf.fill(0);dyBuf.fill(0);dvxBuf.fill(0);dvyBuf.fill(0);if(document.body.className==='vgrid'){buildPixMat();initGridSims();}}
+}
+document.querySelectorAll('.stb').forEach(b=>b.addEventListener('click',()=>gotoStep(b.dataset.s)));
+$on('btn-to-b','click',()=>gotoStep('b'));
+$on('btn-to-a','click',()=>gotoStep('a'));
+$on('btn-to-c','click',()=>gotoStep('c'));
+
+// ── STEP A WIRING ────────────────────────────────────────────────
+PRESET_NAMES.forEach(name=>{
+  const b=document.createElement('button');b.className='btn';b.textContent=name.toUpperCase();
+  b.addEventListener('click',()=>setPreset(name));
+  document.getElementById('pbs').appendChild(b);
+});
+$on('btn-file','click',()=>document.getElementById('fin').click());
+$on('fin','change',e=>{
+  const f=e.target.files[0];if(!f)return;
+  stopCam();const url=URL.createObjectURL(f),img=new Image();
+  img.onload=()=>{loadFromImage(img);document.getElementById('src-st').textContent=f.name;document.getElementById('src-st').className='st ok';};
+  img.src=url;e.target.value='';
+});
+// drag drop
+const dz2=document.getElementById('dz');
+dz2.addEventListener('click',()=>document.getElementById('fin').click());
+dz2.addEventListener('dragover',e=>{e.preventDefault();dz2.classList.add('ov');});
+dz2.addEventListener('dragleave',()=>dz2.classList.remove('ov'));
+dz2.addEventListener('drop',e=>{e.preventDefault();dz2.classList.remove('ov');const f=e.dataTransfer.files[0];if(f&&f.type.startsWith('image/')){stopCam();const url=URL.createObjectURL(f),img=new Image();img.onload=()=>{loadFromImage(img);document.getElementById('src-st').textContent=f.name;document.getElementById('src-st').className='st ok';};img.src=url;}});
+document.addEventListener('paste',e=>{const items=e.clipboardData?.items;if(!items)return;for(const item of items)if(item.type.startsWith('image/')){stopCam();const url=URL.createObjectURL(item.getAsFile()),img=new Image();img.onload=()=>{loadFromImage(img);document.getElementById('src-st').textContent='pasted';document.getElementById('src-st').className='st ok';};img.src=url;break;}});
+// webcam
+let camStream=null,camVid=null,camId=null;
+function stopCam(){if(camStream){camStream.getTracks().forEach(t=>t.stop());camStream=null;}if(camVid){camVid.remove();camVid=null;}clearInterval(camId);camId=null;document.getElementById('btn-cam-on').style.display='';document.getElementById('btn-cam-off').style.display='none';}
+$on('btn-cam-on','click',async()=>{
+  try{camStream=await navigator.mediaDevices.getUserMedia({video:true});camVid=document.createElement('video');camVid.autoplay=true;camVid.playsInline=true;camVid.muted=true;camVid.style.cssText='position:fixed;opacity:0;pointer-events:none;width:1px;height:1px;top:0;';document.body.appendChild(camVid);camVid.srcObject=camStream;await camVid.play();document.getElementById('btn-cam-on').style.display='none';document.getElementById('btn-cam-off').style.display='';document.getElementById('src-st').textContent='webcam live';document.getElementById('src-st').className='st ok';camId=setInterval(()=>{if(camVid&&camVid.readyState>=2)loadFromImage(camVid);},120);}catch(err){document.getElementById('src-st').textContent='cam: '+err.message;}
+});
+$on('btn-cam-off','click',stopCam);
+
+// ── STEP B WIRING ────────────────────────────────────────────────
+// per-mode UI configuration: which params are shown and their labels/ranges
+const TX_UI={
+  'none':  {p1:null, p2:null, thresh:false, nm:false},
+  'grey':  {p1:null, p2:null, thresh:false, nm:false},
+  'invert':{p1:null, p2:null, thresh:false, nm:false},
+  'thresh':{p1:null, p2:null, thresh:true,  nm:false},
+  'fs':    {p1:null, p2:null, thresh:true,  nm:false},
+  'bayer4':{p1:null, p2:null, thresh:true,  nm:true},
+  'bayer8':{p1:null, p2:null, thresh:true,  nm:true},
+  'atkinson':{p1:null, p2:null, thresh:true, nm:false},
+  'rand':  {p1:null, p2:null, thresh:true,  nm:true},
+  'posterize':{p1:['levels',2,9,1,4], p2:null, thresh:false, nm:false},
+  'solarize': {p1:['threshold',0,1,.01,.5], p2:null, thresh:false, nm:false},
+  'edge':     {p1:['strength',0,1,.01,.4], p2:null, thresh:false, nm:false},
+  'emboss':   {p1:['strength',0,1,.01,.5], p2:null, thresh:false, nm:false},
+  'blur':     {p1:['passes',1,6,1,2], p2:null, thresh:false, nm:false},
+  'sharpen':  {p1:['amount',0,1,.01,.4], p2:null, thresh:false, nm:false},
+  'pixelate': {p1:['block size',2,12,1,4], p2:null, thresh:false, nm:false},
+  'channelshift':{p1:['R shift',-6,6,1,0], p2:['B shift',-6,6,1,0], thresh:false, nm:false},
+  'hue':      {p1:['angle °',0,360,1,0], p2:null, thresh:false, nm:false},
+  'contrast': {p1:['contrast',0,1,.01,.5], p2:['brightness',0,1,.01,.5], thresh:false, nm:false},
+  'noise':    {p1:['amount',0,1,.01,.3], p2:null, thresh:false, nm:false},
+  'quantize': {p1:['bits',1,8,1,4], p2:null, thresh:false, nm:false},
+};
+
+function updateTxUI(mode){
+  const cfg=TX_UI[mode]||{p1:null,p2:null,thresh:false,nm:false};
+  const show=(id,v)=>{const el=document.getElementById(id);if(el)el.style.display=v?'':'none';};
+  show('tx-row-thresh',cfg.thresh);
+  show('tx-row-nm',cfg.nm);
+  if(cfg.p1){
+    show('tx-row-p1',true);
+    const [lbl,mn,mx,st,def]=cfg.p1;
+    document.getElementById('tx-p1-lbl').textContent=lbl;
+    const sl=document.getElementById('sl-p1');
+    sl.min=mn;sl.max=mx;sl.step=st;sl.value=def;
+    txP1=def;document.getElementById('lp1').textContent=def;
+  } else { show('tx-row-p1',false); }
+  if(cfg.p2){
+    show('tx-row-p2',true);
+    const [lbl,mn,mx,st,def]=cfg.p2;
+    document.getElementById('tx-p2-lbl').textContent=lbl;
+    const sl=document.getElementById('sl-p2');
+    sl.min=mn;sl.max=mx;sl.step=st;sl.value=def;
+    txP2=def;document.getElementById('lp2').textContent=def;
+  } else { show('tx-row-p2',false); }
+}
+
+document.querySelectorAll('#tx-btns .btn').forEach(b=>{
+  b.addEventListener('click',()=>{
+    document.querySelectorAll('#tx-btns .btn').forEach(x=>x.classList.remove('on'));
+    b.classList.add('on'); txMode=b.dataset.t;
+    updateTxUI(txMode);
+    runDither();
+  });
+});
+
+function slw(id,lbl,fmt,cb){const sl=document.getElementById(id),lb=document.getElementById(lbl);if(!sl)return;sl.addEventListener('input',()=>{const v=parseFloat(sl.value);cb(v);lb.textContent=fmt(v);runDither();});}
+slw('sl-th','lth',v=>v.toFixed(2),v=>{txThresh=v;});
+slw('sl-nm','lnm',v=>v.toFixed(2),v=>{txNoise=v;});
+slw('sl-p1','lp1',v=>{const cfg=TX_UI[txMode];return cfg&&cfg.p1&&Number.isInteger(cfg.p1[2]-cfg.p1[0])?Math.round(v)+'':v.toFixed(2);},v=>{txP1=v;});
+slw('sl-p2','lp2',v=>{const cfg=TX_UI[txMode];return cfg&&cfg.p2&&Number.isInteger(cfg.p2[2]-cfg.p2[0])?Math.round(v)+'':v.toFixed(2);},v=>{txP2=v;});
+$on('chk-col','change',e=>{keepColor=e.target.checked;runDither();});
+$on('chk-inv','change',e=>{invertDith=e.target.checked;runDither();});
+$on('dith-cv','mousemove',e=>{const r=e.target.getBoundingClientRect();showPx(Math.min(PW-1,Math.floor((e.clientX-r.left)/r.width*PW)),Math.min(PH-1,Math.floor((e.clientY-r.top)/r.height*PH)));});
+updateTxUI('none');
+
+// ── STEP C WIRING ────────────────────────────────────────────────
+$on('vb-11','click',()=>setView('11'));
+$on('vb-grid','click',()=>setView('grid'));
+$on('vb-full','click',()=>setView('full'));
+
+// accordion
+document.querySelectorAll('.ah').forEach(h=>{h.addEventListener('click',()=>{h.classList.toggle('op');h.nextElementSibling.classList.toggle('h');});});
+
+// segmentation
+document.querySelectorAll('#seg-btns .bg').forEach(b=>{b.addEventListener('click',()=>{document.querySelectorAll('#seg-btns .bg').forEach(x=>x.classList.remove('on'));b.classList.add('on');segType=b.dataset.v;buildSegs();});});
+
+// sim modes
+const smEl=document.getElementById('sim-btns');
+SIMMODES.forEach(m=>{const b=document.createElement('button');b.className='bg'+(m==='FLOW'?' on':'');b.textContent=m;b.addEventListener('click',()=>{document.querySelectorAll('#sim-btns .bg').forEach(x=>x.classList.remove('on'));b.classList.add('on');simMode=m;});smEl.appendChild(b);});
+
+// physics
+function sw(id,lbl,fmt,cb){const sl=document.getElementById(id),lb=document.getElementById(lbl);if(!sl)return;sl.addEventListener('input',()=>{const v=parseFloat(sl.value);cb(v);lb.textContent=fmt(v);});}
+sw('sl-spd','lspd',v=>v.toFixed(1),v=>{PP.speed=v;});
+sw('sl-forc','lforc',v=>v.toFixed(1),v=>{PP.force=v;});
+sw('sl-damp','ldamp',v=>v.toFixed(2),v=>{PP.damping=v;});
+sw('sl-ret','lret',v=>v.toFixed(3),v=>{PP.ret=v;});
+sw('sl-turb','lturb',v=>v.toFixed(2),v=>{PP.turb=v;});
+
+// rendering
+document.querySelectorAll('#rend-btns .bg').forEach(b=>{b.addEventListener('click',()=>{document.querySelectorAll('#rend-btns .bg').forEach(x=>x.classList.remove('on'));b.classList.add('on');rendMode=b.dataset.v;});});
+sw('sl-sz','lsz',v=>v.toFixed(1),v=>{PP.size=v;});
+sw('sl-bri','lbri',v=>v.toFixed(2),v=>{PP.bri=v;});
+sw('sl-tr','ltr',v=>v.toFixed(3),v=>{PP.trail=v;});
+sw('sl-ps','lps',v=>v.toFixed(1),v=>{PP.phSp=v;});
+
+// post
+document.querySelectorAll('#post-btns .bg').forEach(b=>{b.addEventListener('click',()=>{document.querySelectorAll('#post-btns .bg').forEach(x=>x.classList.remove('on'));b.classList.add('on');postMode=b.dataset.v;});});
+sw('sl-pi','lpi',v=>v.toFixed(2),v=>{postInt=v;});
+$on('chk-def','change',e=>{defOn=e.target.checked;});
+$on('chk-rgb','change',e=>{rgbOn=e.target.checked;});
+sw('sl-drad','ldrad',v=>v.toFixed(2),v=>{defRad=v;});
+sw('sl-dstr','ldstr',v=>v.toFixed(1),v=>{defStr=v;});
+
+// actions
+$on('btn-reset','click',()=>{for(const p of particles){p.x=p.hx+(Math.random()-.5)*.3;p.y=p.hy+(Math.random()-.5)*.3;p.vx=0;p.vy=0;}dxBuf.fill(0);dyBuf.fill(0);});
+$on('btn-expl','click',()=>{for(const sg of segs)for(const p of sg.particles){const dx=p.x-sg.cx,dy=p.y-sg.cy,d=Math.sqrt(dx*dx+dy*dy)||1;p.vx+=dx/d*(2+Math.random()*3);p.vy+=dy/d*(2+Math.random()*3);}});
+$on('btn-pause','click',function(){paused=!paused;this.textContent=paused?'RESUME':'PAUSE';});
+$on('btn-regen','click',()=>{runDither();buildParticles();buildSegs();dxBuf.fill(0);dyBuf.fill(0);dvxBuf.fill(0);dvyBuf.fill(0);});
+
+// mouse deform on main canvas
+mainCv.addEventListener('mousemove',e=>{const r=mainCv.getBoundingClientRect();const ngx=(e.clientX-r.left)/r.width*PW,ngy=(e.clientY-r.top)/r.height*PH;mouse.vx=ngx-mouse.gx;mouse.vy=ngy-mouse.gy;mouse.gx=ngx;mouse.gy=ngy;mouse.over=true;});
+mainCv.addEventListener('mouseleave',()=>{mouse.over=false;mouse.vx=0;mouse.vy=0;});
+
+// ── PARASITE SYSTEM ──────────────────────────────────────────────
+// Host image at 48×48 RGB
+let hostRGB=null; // Uint8ClampedArray N*3
+// Infestation map: Float32Array N, 0=clean 1=fully infested
+let infestMap=new Float32Array(N);
+// Infested colour per pixel (blended sim colour that infected it)
+let infestR=new Uint8ClampedArray(N),infestG=new Uint8ClampedArray(N),infestB=new Uint8ClampedArray(N);
+// Sim snapshot (read from main canvas each frame)
+let simSnap=new Uint8ClampedArray(N*4);
+
+let paraSpread=0.08,paraThresh=0.30,paraBlend=0.60,paraDecay=0,paraMut=0.10,paraSeed=0.02;
+let paraCAOn=true,paraSyncOn=true,paraInvAct=false;
+let paraHostLoaded=false;
+let paraCamStream=null,paraCamVid=null,paraCamId=null;
+
+// ── DISPLACEMENT MUTATION state ──
+let paraDisOn=false,paraDisStr=3,paraDisScale=1,paraDisDrift=0.5,paraDisBlur=0;
+let paraDisSrc='infest',paraDisDir='flow';
+let disDriftT=0; // time accumulator for warp drift
+// per-pixel displacement vectors accumulated from virus spread
+let virusDX=new Float32Array(N), virusDY=new Float32Array(N);
+// smoothed output displacement buffer
+let smoothDX=new Float32Array(N), smoothDY=new Float32Array(N);
+
+const DIRS4=[[-1,0],[1,0],[0,-1],[0,1]];
+
+const simThumb=document.getElementById('sim-thumb');
+const hostThumb=document.getElementById('host-thumb');
+const infestCv=document.getElementById('infest-cv');
+const stCtx=simThumb.getContext('2d');
+const htCtx=hostThumb.getContext('2d');
+const icCtx=infestCv.getContext('2d');
+
+function loadHostImage(src2){
+  const img=new Image();
+  img.onload=()=>{
+    const oc=document.createElement('canvas');oc.width=PW;oc.height=PH;
+    const ox=oc.getContext('2d',{willReadFrequently:true});
+    ox.drawImage(img,0,0,PW,PH);
+    const id=ox.getImageData(0,0,PW,PH);
+    hostRGB=new Uint8ClampedArray(N*3);
+    for(let i=0;i<N;i++){hostRGB[i*3]=id.data[i*4];hostRGB[i*3+1]=id.data[i*4+1];hostRGB[i*3+2]=id.data[i*4+2];}
+    // draw host thumb
+    htCtx.putImageData(id,0,0);
+    paraHostLoaded=true;
+    resetInfestation();
+    document.getElementById('para-live').style.display='';
+    document.getElementById('para-stat').textContent='host loaded · seeding…';
+  };
+  img.src=src2;
+}
+
+function resetInfestation(){
+  infestMap.fill(0);
+  infestR.fill(0);infestG.fill(0);infestB.fill(0);
+  // seed random starting points
+  for(let i=0;i<N;i++) if(Math.random()<paraSeed){infestMap[i]=0.05+Math.random()*.1;}
+  document.getElementById('para-stat').textContent='infestation reset';
+}
+
+function sampleSimCanvas(){
+  // read main-cv pixels at 48×48 native resolution
+  const id=mainCtx.getImageData(0,0,PW,PH);
+  simSnap.set(id.data);
+}
+
+function stepParasite(){
+  if(!paraHostLoaded||!paraCAOn) return;
+
+  sampleSimCanvas();
+
+  // draw current sim snap to sim thumb
+  const sid=stCtx.createImageData(PW,PH);
+  sid.data.set(simSnap);
+  stCtx.putImageData(sid,0,0);
+
+  const next=new Float32Array(infestMap);
+  const nr=new Uint8ClampedArray(infestR);
+  const ng=new Uint8ClampedArray(infestG);
+  const nb=new Uint8ClampedArray(infestB);
+
+  for(let py=0;py<PH;py++) for(let px=0;px<PW;px++){
+    const i=py*PW+px;
+    // sim luminance at this pixel
+    const sr=simSnap[i*4],sg=simSnap[i*4+1],sb=simSnap[i*4+2];
+    const lum=(sr*.299+sg*.587+sb*.114)/255;
+    const act=paraInvAct?1-lum:lum;
+
+    // decay
+    if(paraDecay>0&&next[i]>0) next[i]=Math.max(0,next[i]-paraDecay);
+
+    // if this pixel is infested and active, try to spread to neighbours
+    if(infestMap[i]>0.1&&act>paraThresh){
+      for(const[dx,dy] of DIRS4){
+        const nx2=px+dx,ny2=py+dy;
+        if(nx2<0||nx2>=PW||ny2<0||ny2>=PH) continue;
+        const ni=ny2*PW+nx2;
+        if(infestMap[ni]<1&&Math.random()<paraSpread*act){
+          const grow=Math.min(1,infestMap[ni]+0.05+Math.random()*0.08);
+          next[ni]=grow;
+          // infest colour = sim colour blended with existing infest colour
+          const mut=paraMut;
+          nr[ni]=Math.min(255,infestR[ni]*(1-mut)+sr*mut+Math.random()*8-4)|0;
+          ng[ni]=Math.min(255,infestG[ni]*(1-mut)+sg*mut+Math.random()*8-4)|0;
+          nb[ni]=Math.min(255,infestB[ni]*(1-mut)+sb*mut+Math.random()*8-4)|0;
+        }
+      }
+    }
+    // grow existing infested cells
+    if(next[i]>0&&act>paraThresh*.5){
+      next[i]=Math.min(1,next[i]+0.003*act);
+      if(nr[i]===0&&ng[i]===0&&nb[i]===0){nr[i]=sr;ng[i]=sg;nb[i]=sb;}
+    }
+  }
+  infestMap.set(next);
+  infestR.set(nr);infestG.set(ng);infestB.set(nb);
+
+  // ── update displacement virus vectors from infestation activity ──
+  if(paraDisOn){
+    disDriftT+=paraDisDrift*0.008;
+    for(let py=0;py<PH;py++) for(let px=0;px<PW;px++){
+      const i=py*PW+px;
+      const inf=infestMap[i];
+      if(inf<0.01){virusDX[i]*=0.92;virusDY[i]*=0.92;continue;}
+
+      // source magnitude: what drives the displacement amplitude
+      let mag=0;
+      const sr2=simSnap[i*4],sg2=simSnap[i*4+1],sb2=simSnap[i*4+2];
+      if(paraDisSrc==='infest') mag=inf;
+      else if(paraDisSrc==='sim-r') mag=sr2/255;
+      else if(paraDisSrc==='sim-g') mag=sg2/255;
+      else if(paraDisSrc==='sim-b') mag=sb2/255;
+      else if(paraDisSrc==='sim-lum') mag=(sr2*.299+sg2*.587+sb2*.114)/255;
+      else if(paraDisSrc==='noise') mag=fbm(px*paraDisScale*.2+disDriftT*0.3,py*paraDisScale*.2)*0.5+0.5;
+
+      // direction field
+      let dx=0,dy=0;
+      const cx2=PW/2,cy2=PH/2;
+      if(paraDisDir==='flow'){
+        // fBm flow field drifts over time driven by virus spread
+        const angle=fbm(px*paraDisScale*.15+disDriftT,py*paraDisScale*.15+disDriftT*.7)*Math.PI*4;
+        dx=Math.cos(angle);dy=Math.sin(angle);
+      } else if(paraDisDir==='radial'){
+        const ddx=px-cx2,ddy=py-cy2,d=Math.sqrt(ddx*ddx+ddy*ddy)||1;
+        dx=ddx/d;dy=ddy/d;
+      } else if(paraDisDir==='angular'){
+        const ddx=px-cx2,ddy=py-cy2,d=Math.sqrt(ddx*ddx+ddy*ddy)||1;
+        dx=-ddy/d;dy=ddx/d;
+      } else if(paraDisDir==='horiz'){
+        dx=Math.sin(py*paraDisScale*.25+disDriftT)*1;dy=0;
+      } else if(paraDisDir==='vert'){
+        dx=0;dy=Math.sin(px*paraDisScale*.25+disDriftT)*1;
+      }
+
+      // accumulate: virus vectors grow proportional to infestation * magnitude
+      virusDX[i]=virusDX[i]*.85+dx*mag*paraDisStr*inf;
+      virusDY[i]=virusDY[i]*.85+dy*mag*paraDisStr*inf;
+    }
+
+    // blur smoothing pass (box blur 1px if blur > 0)
+    if(paraDisBlur>0){
+      const bw=paraDisBlur;
+      for(let py=1;py<PH-1;py++) for(let px=1;px<PW-1;px++){
+        const i=py*PW+px;
+        smoothDX[i]=virusDX[i]*(1-bw)+(virusDX[i-1]+virusDX[i+1]+virusDX[i-PW]+virusDX[i+PW])*bw*.25;
+        smoothDY[i]=virusDY[i]*(1-bw)+(virusDY[i-1]+virusDY[i+1]+virusDY[i-PW]+virusDY[i+PW])*bw*.25;
+      }
+    } else {
+      smoothDX.set(virusDX);smoothDY.set(virusDY);
+    }
+  }
+
+  // ── render infestation canvas ──
+  const iid=icCtx.createImageData(PW,PH);
+  let infestedCount=0;
+  for(let py=0;py<PH;py++) for(let px=0;px<PW;px++){
+    const i=py*PW+px;
+    const inf=infestMap[i];
+    if(inf>0) infestedCount++;
+
+    // sample host with displacement
+    let spx=px,spy=py;
+    if(paraDisOn&&inf>0.01){
+      spx=Math.min(PW-1,Math.max(0,px+smoothDX[i]|0));
+      spy=Math.min(PH-1,Math.max(0,py+smoothDY[i]|0));
+    }
+    const si=spy*PW+spx;
+    const hr=hostRGB?hostRGB[si*3]:0;
+    const hg=hostRGB?hostRGB[si*3+1]:0;
+    const hb=hostRGB?hostRGB[si*3+2]:0;
+
+    // colour blend: host (displaced) + infest colour
+    const bw=Math.min(1,inf*paraBlend*1.5);
+    let fr=hr*(1-bw)+infestR[i]*bw|0;
+    let fg=hg*(1-bw)+infestG[i]*bw|0;
+    let fb=hb*(1-bw)+infestB[i]*bw|0;
+
+    // glow on deeply infested pixels
+    if(inf>0.9){fr=Math.min(255,fr+infestR[i]*0.25|0);fg=Math.min(255,fg+infestG[i]*0.25|0);fb=Math.min(255,fb+infestB[i]*0.25|0);}
+
+    iid.data[i*4]=fr; iid.data[i*4+1]=fg; iid.data[i*4+2]=fb; iid.data[i*4+3]=255;
+  }
+  icCtx.putImageData(iid,0,0);
+  const pct=Math.round(infestedCount/N*100);
+  document.getElementById('para-stat').textContent=pct+'% infested'+(paraDisOn?' · DISPLACING':'');
+}
+
+// ── PARASITE WIRING ──────────────────────────────────────────────
+// displacement source buttons
+document.querySelectorAll('[data-ds]').forEach(b=>{
+  b.addEventListener('click',()=>{
+    document.querySelectorAll('[data-ds]').forEach(x=>x.classList.remove('on'));
+    b.classList.add('on'); paraDisSrc=b.dataset.ds;
+  });
+});
+// displacement direction buttons
+document.querySelectorAll('#pddir-btns .bg').forEach(b=>{
+  b.addEventListener('click',()=>{
+    document.querySelectorAll('#pddir-btns .bg').forEach(x=>x.classList.remove('on'));
+    b.classList.add('on'); paraDisDir=b.dataset.dd;
+  });
+});
+
+function sp2(id,lbl,fmt,cb){
+  const sl=document.getElementById(id),lb=document.getElementById(lbl);
+  if(!sl)return;
+  sl.addEventListener('input',()=>{const v=parseFloat(sl.value);cb(v);lb.textContent=fmt(v);});
+}
+sp2('sl-psr','l-psr',v=>v.toFixed(3),v=>{paraSpread=v;});
+sp2('sl-pat','l-pat',v=>v.toFixed(2),v=>{paraThresh=v;});
+sp2('sl-pbl','l-pbl',v=>v.toFixed(2),v=>{paraBlend=v;});
+sp2('sl-pdc','l-pdc',v=>v.toFixed(3),v=>{paraDecay=v;});
+sp2('sl-pmut','l-pmut',v=>v.toFixed(2),v=>{paraMut=v;});
+sp2('sl-psd','l-psd',v=>v.toFixed(3),v=>{paraSeed=v;resetInfestation();});
+sp2('sl-pdst','l-pdst',v=>v.toFixed(1),v=>{paraDisStr=v;});
+sp2('sl-pdsc','l-pdsc',v=>v.toFixed(1),v=>{paraDisScale=v;});
+sp2('sl-pdds','l-pdds',v=>v.toFixed(1),v=>{paraDisDrift=v;});
+sp2('sl-pdbr','l-pdbr',v=>v.toFixed(2),v=>{paraDisBlur=v;});
+$on('chk-pca','change',e=>{paraCAOn=e.target.checked;});
+$on('chk-psync','change',e=>{paraSyncOn=e.target.checked;});
+$on('chk-pinv','change',e=>{paraInvAct=e.target.checked;});
+$on('chk-pdis','change',e=>{
+  paraDisOn=e.target.checked;
+  if(!paraDisOn){virusDX.fill(0);virusDY.fill(0);smoothDX.fill(0);smoothDY.fill(0);}
+});
+$on('para-reset-btn','click',()=>{resetInfestation();virusDX.fill(0);virusDY.fill(0);smoothDX.fill(0);smoothDY.fill(0);});
+
+$on('para-load','click',()=>document.getElementById('para-fin').click());
+$on('para-fin','change',e=>{
+  const f=e.target.files[0];if(!f)return;
+  loadHostImage(URL.createObjectURL(f));
+  e.target.value='';
+});
+const paraDz=document.getElementById('para-dz');
+paraDz.addEventListener('click',()=>document.getElementById('para-fin').click());
+paraDz.addEventListener('dragover',e=>{e.preventDefault();paraDz.classList.add('ov');});
+paraDz.addEventListener('dragleave',()=>paraDz.classList.remove('ov'));
+paraDz.addEventListener('drop',e=>{
+  e.preventDefault();paraDz.classList.remove('ov');
+  const f=e.dataTransfer.files[0];
+  if(f&&f.type.startsWith('image/')) loadHostImage(URL.createObjectURL(f));
+});
+
+function stopParaCam(){
+  if(paraCamStream){paraCamStream.getTracks().forEach(t=>t.stop());paraCamStream=null;}
+  if(paraCamVid){paraCamVid.remove();paraCamVid=null;}
+  clearInterval(paraCamId);paraCamId=null;
+  document.getElementById('para-cam').textContent='WEBCAM';
+  document.getElementById('para-cam').classList.remove('on');
+}
+$on('para-cam','click',async function(){
+  if(paraCamStream){stopParaCam();return;}
+  try{
+    paraCamStream=await navigator.mediaDevices.getUserMedia({video:true});
+    paraCamVid=document.createElement('video');paraCamVid.autoplay=true;paraCamVid.playsInline=true;paraCamVid.muted=true;
+    paraCamVid.style.cssText='position:fixed;opacity:0;pointer-events:none;width:1px;height:1px;top:0;';
+    document.body.appendChild(paraCamVid);paraCamVid.srcObject=paraCamStream;await paraCamVid.play();
+    this.textContent='■ STOP';this.classList.add('on');
+    paraCamId=setInterval(()=>{
+      if(paraCamVid&&paraCamVid.readyState>=2){
+        const oc=document.createElement('canvas');oc.width=PW;oc.height=PH;
+        const ox=oc.getContext('2d',{willReadFrequently:true});
+        ox.drawImage(paraCamVid,0,0,PW,PH);
+        const id=ox.getImageData(0,0,PW,PH);
+        if(!hostRGB)hostRGB=new Uint8ClampedArray(N*3);
+        for(let i=0;i<N;i++){hostRGB[i*3]=id.data[i*4];hostRGB[i*3+1]=id.data[i*4+1];hostRGB[i*3+2]=id.data[i*4+2];}
+        htCtx.putImageData(id,0,0);
+        if(!paraHostLoaded){paraHostLoaded=true;resetInfestation();document.getElementById('para-live').style.display='';}
+      }
+    },150);
+  }catch(err){document.getElementById('para-stat').textContent='cam: '+err.message;}
+});
+
+// hook into main loop — run parasite step every sim tick
+const _origLoopBody=null; // we'll call stepParasite from inside the loop
+
+// ── HELP ─────────────────────────────────────────────────────────
+$on('btn-help','click',()=>{
+  document.getElementById('help-overlay').classList.add('on');
+});
+$on('help-close','click',()=>{
+  document.getElementById('help-overlay').classList.remove('on');
+});
+$on('help-overlay','click',e=>{
+  if(e.target===document.getElementById('help-overlay'))
+    document.getElementById('help-overlay').classList.remove('on');
+});
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape') document.getElementById('help-overlay').classList.remove('on');
+});
+
+// ── FULL SIZE SLIDER ─────────────────────────────────────────────
+$on('sl-pxsz','input',function(){
+  fullPxSize=parseInt(this.value);
+  document.getElementById('l-pxsz').textContent=fullPxSize;
+  if(document.body.className==='vfull') applyFullSize();
+});
+
+// ── TEMPLATE SAVE / LOAD ──────────────────────────────────────────
+function gatherSettings(name){
+  return {
+    _meta:{name:name||document.getElementById('tpl-name').value||'unnamed',version:'1.0',ts:new Date().toISOString()},
+    dither:{type:dithType,thresh:dithThresh,noise:dithNoise,keepColor,invert:invertDith},
+    sim:{mode:simMode,seg:segType,speed:PP.speed,force:PP.force,damping:PP.damping,ret:PP.ret,turb:PP.turb,phSp:PP.phSp},
+    render:{mode:rendMode,size:PP.size,bri:PP.bri,trail:PP.trail},
+    post:{mode:postMode,intensity:postInt,defOn,rgbOn,defRad,defStr},
+    view:{fullPxSize},
+  };
+}
+
+function applySettings(s){
+  if(!s) return;
+  // dither
+  if(s.dither){
+    dithType=s.dither.type||dithType;
+    dithThresh=s.dither.thresh??dithThresh;
+    dithNoise=s.dither.noise??dithNoise;
+    keepColor=!!s.dither.keepColor;
+    invertDith=!!s.dither.invert;
+    // sync UI
+    document.querySelectorAll('#dith-btns .btn').forEach(b=>{b.classList.toggle('on',b.dataset.d===dithType);});
+    const thSl=document.getElementById('sl-th');if(thSl){thSl.value=dithThresh;document.getElementById('lth').textContent=dithThresh.toFixed(2);}
+    const nmSl=document.getElementById('sl-nm');if(nmSl){nmSl.value=dithNoise;document.getElementById('lnm').textContent=dithNoise.toFixed(2);}
+    document.getElementById('chk-col').checked=keepColor;
+    document.getElementById('chk-inv').checked=invertDith;
+    runDither();
+  }
+  if(s.sim){
+    simMode=s.sim.mode||simMode;
+    segType=s.sim.seg||segType;
+    PP.speed=s.sim.speed??PP.speed;PP.force=s.sim.force??PP.force;PP.damping=s.sim.damping??PP.damping;PP.ret=s.sim.ret??PP.ret;PP.turb=s.sim.turb??PP.turb;PP.phSp=s.sim.phSp??PP.phSp;
+    // sync UI
+    document.querySelectorAll('#sim-btns .bg').forEach(b=>{b.classList.toggle('on',b.textContent===simMode);});
+    document.querySelectorAll('#seg-btns .bg').forEach(b=>{b.classList.toggle('on',b.dataset.v===segType);});
+    const ids={speed:'sl-spd',force:'sl-forc',damping:'sl-damp',ret:'sl-ret',turb:'sl-turb',phSp:'sl-ps'};
+    const lbls={speed:'lspd',force:'lforc',damping:'ldamp',ret:'lret',turb:'lturb',phSp:'lps'};
+    for(const[k,id] of Object.entries(ids)){const sl=document.getElementById(id);if(sl&&s.sim[k]!=null){sl.value=s.sim[k];document.getElementById(lbls[k]).textContent=parseFloat(s.sim[k]).toFixed(k==='damping'?2:1);}}
+    buildSegs();
+  }
+  if(s.render){
+    rendMode=s.render.mode||rendMode;PP.size=s.render.size??PP.size;PP.bri=s.render.bri??PP.bri;PP.trail=s.render.trail??PP.trail;
+    document.querySelectorAll('#rend-btns .bg').forEach(b=>{b.classList.toggle('on',b.dataset.v===rendMode);});
+    const ri={size:'sl-sz',bri:'sl-bri',trail:'sl-tr'};const rl={size:'lsz',bri:'lbri',trail:'ltr'};
+    for(const[k,id] of Object.entries(ri)){const sl=document.getElementById(id);if(sl&&s.render[k]!=null){sl.value=s.render[k];document.getElementById(rl[k]).textContent=parseFloat(s.render[k]).toFixed(k==='trail'?3:1);}}
+  }
+  if(s.post){
+    postMode=s.post.mode||postMode;postInt=s.post.intensity??postInt;defOn=!!s.post.defOn;rgbOn=!!s.post.rgbOn;defRad=s.post.defRad??defRad;defStr=s.post.defStr??defStr;
+    document.querySelectorAll('#post-btns .bg').forEach(b=>{b.classList.toggle('on',b.dataset.v===postMode);});
+    document.getElementById('chk-def').checked=defOn;document.getElementById('chk-rgb').checked=rgbOn;
+    const pi={intensity:'sl-pi',defRad:'sl-drad',defStr:'sl-dstr'};const pl={intensity:'lpi',defRad:'ldrad',defStr:'ldstr'};
+    for(const[k,id] of Object.entries(pi)){const sl=document.getElementById(id);if(sl&&s.post[k]!=null){sl.value=s.post[k];document.getElementById(pl[k]).textContent=parseFloat(s.post[k]).toFixed(2);}}
+  }
+  if(s.view&&s.view.fullPxSize){
+    fullPxSize=s.view.fullPxSize;
+    const fsl=document.getElementById('sl-pxsz');if(fsl){fsl.value=fullPxSize;document.getElementById('l-pxsz').textContent=fullPxSize;}
+    applyFullSize();
+  }
+  if(s._meta&&s._meta.name){document.getElementById('tpl-name').value=s._meta.name;}
+}
+
+$on('btn-save-tpl','click',()=>{
+  const name=document.getElementById('tpl-name').value||'settings';
+  const obj=gatherSettings(name);
+  const txt=JSON.stringify(obj,null,2);
+  const a=document.createElement('a');
+  a.href='data:text/plain;charset=utf-8,'+encodeURIComponent(txt);
+  a.download=name.replace(/[^a-zA-Z0-9_-]/g,'_')+'.txt';
+  a.click();
+});
+
+$on('btn-load-tpl','click',()=>document.getElementById('tpl-in').click());
+$on('tpl-in','change',e=>{
+  const f=e.target.files[0];if(!f)return;
+  const reader=new FileReader();
+  reader.onload=ev=>{
+    try{
+      const obj=JSON.parse(ev.target.result);
+      applySettings(obj);
+    }catch(err){alert('Could not parse template: '+err.message);}
+  };
+  reader.readAsText(f);
+  e.target.value='';
+});
+
+// ── BOOT ─────────────────────────────────────────────────────────
+setPreset('plasma');
+runDither();
+requestAnimationFrame(loop);
+})();
+</script>
+
+<!-- ── HELP OVERLAY ── -->
+<div id="help-overlay">
+<div id="help-box">
+  <button id="help-close">✕  CLOSE</button>
+  <h1>PIXEL PIPELINE · REFERENCE MANUAL</h1>
+
+  <p>A three-stage pipeline: load or generate a source image → dither it to 48×48 → run it as a particle simulation. Each of the 2304 pixels carries five fundamental properties <code>(r, g, b, x, y)</code> that seed and drive every particle.</p>
+
+  <h2>A · IMAGE — SOURCE STAGE</h2>
+  <p>Define what the 48×48 pixel matrix looks like before dithering.</p>
+  <table>
+    <tr><th>action</th><th>description</th></tr>
+    <tr><td>LOAD FILE</td><td>Load any image from disk. It is downsampled to 48×48. All common formats accepted.</td></tr>
+    <tr><td>WEBCAM</td><td>Start live camera capture. The 48×48 frame updates every 120 ms. Click STOP to end the stream.</td></tr>
+    <tr><td>Drag &amp; drop</td><td>Drop an image file onto the dashed zone. Also works from step B.</td></tr>
+    <tr><td>Paste</td><td>Ctrl/Cmd+V pastes an image from clipboard anywhere on the page.</td></tr>
+    <tr><td>Presets</td><td>14 built-in generators. See table below.</td></tr>
+  </table>
+  <h3>Image presets</h3>
+  <table>
+    <tr><th>preset</th><th>description</th></tr>
+    <tr><td>plasma</td><td>Interference of three sine waves → coloured blobs. Good default starting point.</td></tr>
+    <tr><td>noise</td><td>Full RGB random per-pixel.</td></tr>
+    <tr><td>mono</td><td>Greyscale random per-pixel.</td></tr>
+    <tr><td>heat</td><td>Horizontal ramp: red→yellow→black temperature gradient.</td></tr>
+    <tr><td>radial</td><td>Magenta radial gradient bright-centre to dark-edge.</td></tr>
+    <tr><td>checker</td><td>4×4 black-and-white checkerboard.</td></tr>
+    <tr><td>hramp / vramp</td><td>Horizontal or vertical RGB gradient sweep.</td></tr>
+    <tr><td>diagonal</td><td>Diagonal gradient with sine-modulated blue channel.</td></tr>
+    <tr><td>rings</td><td>Concentric ring interference pattern.</td></tr>
+    <tr><td>fbm</td><td>Three independent fBm (fractal Brownian motion) noise fields as R, G, B.</td></tr>
+    <tr><td>rgb</td><td>Three equal vertical bands: red, green, blue.</td></tr>
+    <tr><td>stripe</td><td>Horizontal alternating stripes: warm-cool colour pairs.</td></tr>
+    <tr><td>vignette</td><td>Bright centre fading to dark edge radial vignette.</td></tr>
+  </table>
+
+  <h2>B · DITHER — QUANTISATION STAGE</h2>
+  <p>Converts the source to a 48×48 binary/quantised image using error-diffusion or ordered dithering. This defines the particle colours.</p>
+  <table>
+    <tr><th>algorithm</th><th>description</th></tr>
+    <tr><td>FLOYD-STEINBERG</td><td>Classic serpentine error diffusion. Smooth tonal gradients with fine grain. Best for photographic sources.</td></tr>
+    <tr><td>BAYER 4</td><td>4×4 ordered threshold matrix. Regular dot-screen pattern. Fast, deterministic.</td></tr>
+    <tr><td>BAYER 8</td><td>8×8 ordered matrix. Finer tonal steps than Bayer 4, smoother transitions.</td></tr>
+    <tr><td>ATKINSON</td><td>Apple Macintosh-era error diffusion. Propagates only 6/8 of the error, preserving highlights. Higher contrast than Floyd-Steinberg.</td></tr>
+    <tr><td>THRESHOLD</td><td>Hard cut at the threshold value. No diffusion. Maximum contrast, pixelated feel.</td></tr>
+    <tr><td>RANDOM</td><td>Stochastic threshold per pixel. Noisy, grainy film-like texture.</td></tr>
+  </table>
+  <table>
+    <tr><th>control</th><th>description</th></tr>
+    <tr><td>threshold</td><td>Midpoint of the black/white decision. Lower = more white pixels. Default 0.50.</td></tr>
+    <tr><td>noise mix</td><td>Adds random jitter to the threshold. Increases grain and breaks up regular patterns.</td></tr>
+    <tr><td>keep color</td><td>When ON, the dithered lightness pattern is applied to the original colour channels instead of producing greyscale. Particles retain source hue.</td></tr>
+    <tr><td>invert</td><td>Flips all channel values after dithering.</td></tr>
+  </table>
+  <p class="note">Hover over the 48×48 dithered preview to inspect any pixel's exact <code>(r, g, b, x, y)</code> properties in the panel on the left. The colour band shows relative R, G, B weights.</p>
+
+  <h2>C · SIMULATE — PARTICLE STAGE</h2>
+  <p>Each of the 2304 dithered pixels becomes a particle seeded with its <code>(r, g, b, x, y)</code> and animated by a physics mode.</p>
+
+  <h3>View modes</h3>
+  <table>
+    <tr><th>view</th><th>description</th></tr>
+    <tr><td>1 : 1</td><td>Single 480×480 simulation with full controls panel. Cursor deformation active.</td></tr>
+    <tr><td>10 × 10 GRID</td><td>100-cell grid: 10 simulation modes (columns) × 10 visual property variations (rows). All cells run at gentle speeds. Hue rotation separates rows visually. No post FX. Controls panel hidden.</td></tr>
+    <tr><td>FULL</td><td>Canvas fills the window as a perfect square of pixels. Use the PX SIZE slider (2–32 px/cell) at the bottom to scale. Controls panel hidden in full mode.</td></tr>
+  </table>
+
+  <h3>Segmentation</h3>
+  <p>Divides the 48×48 field into independent regions. Each segment runs its own physics centre, vortex axis, and phase offset.</p>
+  <table>
+    <tr><th>mode</th><th>regions</th></tr>
+    <tr><td>NONE</td><td>Single field, all 2304 particles share one physics zone.</td></tr>
+    <tr><td>COLS 2/4/8</td><td>2, 4, or 8 vertical strips of 24, 12, or 6 columns each.</td></tr>
+    <tr><td>ROWS 2/4</td><td>2 or 4 horizontal bands.</td></tr>
+    <tr><td>GRID 2×2 / 4×4</td><td>4 or 16 equal square zones.</td></tr>
+  </table>
+
+  <h3>Simulation modes</h3>
+  <table>
+    <tr><th>mode</th><th>description</th></tr>
+    <tr><td>FLOW</td><td>fBm noise velocity field drifts continuously. Particles follow organic, curling paths. Return force pulls toward home position.</td></tr>
+    <tr><td>VORTEX</td><td>Orbital spin around each segment's centre. Inward pull creates a spiral. Noise jitter disrupts perfect circles.</td></tr>
+    <tr><td>WAVE</td><td>Travelling sine wave displaces particles from home. Phase offset cascades across the field.</td></tr>
+    <tr><td>SCATTER</td><td>Particles repel from their home position. Bounce off segment walls. Noise drives random walk.</td></tr>
+    <tr><td>FORMATION</td><td>Strong home attraction with noise jitter. Particles oscillate around original pixel positions. Shows image structure clearly.</td></tr>
+    <tr><td>CASCADE</td><td>Gravity rain: particles fall, wrap to top on exit. Noise causes lateral drift.</td></tr>
+    <tr><td>ORBIT</td><td>Each particle orbits at a radius proportional to its original distance from segment centre.</td></tr>
+    <tr><td>BREATHE</td><td>Radial pulse in/out from segment centre. All particles expand and contract in a single rhythm.</td></tr>
+  </table>
+
+  <h3>Physics sliders</h3>
+  <table>
+    <tr><th>slider</th><th>description</th></tr>
+    <tr><td>speed</td><td>Global velocity multiplier. Scales movement and integration step.</td></tr>
+    <tr><td>force</td><td>Amplitude of the mode-specific driving force.</td></tr>
+    <tr><td>damping</td><td>Velocity decay per frame (0.5–0.99). Low = heavily damped, short trails. High = particles glide far.</td></tr>
+    <tr><td>return</td><td>Strength of home-position attraction. 0 = free roam. High = snaps back immediately.</td></tr>
+    <tr><td>turbulence</td><td>Amplitude of noise perturbation layered on top of the physics mode.</td></tr>
+  </table>
+
+  <h3>Rendering modes</h3>
+  <table>
+    <tr><th>mode</th><th>description</th></tr>
+    <tr><td>DOTS</td><td>Circular arc fill. Smooth, organic look. Size controlled by particle size slider.</td></tr>
+    <tr><td>SQUARES</td><td>Axis-aligned filled rectangles. Pixel-grid aesthetic.</td></tr>
+    <tr><td>LINE→HOME</td><td>Stroke from current position to home position. Reveals displacement magnitude and direction.</td></tr>
+    <tr><td>CROSS</td><td>Horizontal and vertical strokes. Fine crosshair marks.</td></tr>
+    <tr><td>MINIMAL</td><td>Single pixel dot, drawn only for bright particles. Maximum resolution, minimum weight.</td></tr>
+  </table>
+  <table>
+    <tr><th>slider</th><th>description</th></tr>
+    <tr><td>size</td><td>Particle draw radius/extent multiplier.</td></tr>
+    <tr><td>brightness</td><td>Multiplier on particle RGB before drawing.</td></tr>
+    <tr><td>trail</td><td>Black fill opacity per frame (fade). Low = long persistence. High = no trail, clean frame.</td></tr>
+    <tr><td>phase speed</td><td>Rate of the per-particle oscillation used for alpha pulsing and wave timing.</td></tr>
+  </table>
+
+  <h3>Post FX</h3>
+  <table>
+    <tr><th>effect</th><th>description</th></tr>
+    <tr><td>NONE</td><td>Raw particle output, no filtering.</td></tr>
+    <tr><td>SCANLINES</td><td>Horizontal black lines every 2 pixels at 25% opacity. CRT line effect.</td></tr>
+    <tr><td>CRT</td><td>Scanlines + radial vignette darkening toward edges.</td></tr>
+    <tr><td>INVERT</td><td>Difference blend with white, proportional to intensity slider.</td></tr>
+    <tr><td>B&amp;W</td><td>Desaturates toward greyscale by the intensity amount. 0 = full colour, 1 = monochrome.</td></tr>
+  </table>
+  <table>
+    <tr><th>control</th><th>description</th></tr>
+    <tr><td>cursor deform</td><td>Mouse movement pushes particles away from cursor position. Spring-restoring deformation persists as a decay trail.</td></tr>
+    <tr><td>RGB split on deform</td><td>When cursor deform is active, displaced pixels are drawn as three offset R, G, B layers — chromatic aberration.</td></tr>
+    <tr><td>deform radius</td><td>Influence radius of the cursor as a fraction of field height.</td></tr>
+    <tr><td>deform strength</td><td>Impulse force applied to particles within the cursor radius.</td></tr>
+  </table>
+
+  <h2>PARASITE · HOST WINDOW</h2>
+  <p>A second image is loaded as a "host." The live simulation output feeds into a cellular automaton that infests the host image pixel by pixel in real time.</p>
+  <h3>How infestation works</h3>
+  <ul>
+    <li>Each tick, the sim canvas is sampled at 48×48 native resolution.</li>
+    <li>A pixel luminance value is computed per cell. If it exceeds the <strong>activation threshold</strong>, that cell is "active" in the CA.</li>
+    <li>Active cells that are already infested attempt to spread to their 4 Von Neumann neighbours with probability <strong>spread rate × luminance</strong>.</li>
+    <li>Each spread event copies the sim's colour with <strong>colour mutation</strong> random drift — the infection colour evolves as it propagates.</li>
+    <li>The final output blends host pixel colour with infested sim colour, weighted by infestation level × <strong>blend host/sim</strong>.</li>
+    <li>At full infestation (>90%), pixels receive an additional colour boost from their infesting source.</li>
+  </ul>
+  <table>
+    <tr><th>control</th><th>description</th></tr>
+    <tr><td>spread rate</td><td>CA propagation probability per tick (0.001–0.5). The key speed parameter.</td></tr>
+    <tr><td>activation thresh</td><td>Minimum sim brightness to trigger spreading. High = only bright sim pixels infect.</td></tr>
+    <tr><td>blend host/sim</td><td>How strongly the sim colour replaces host colour at full infestation. 0 = host invisible, 1 = full replacement.</td></tr>
+    <tr><td>infestation decay</td><td>Healing rate per tick. 0 = infection grows forever. &gt;0 = cells slowly recover.</td></tr>
+    <tr><td>colour mutation</td><td>Per-spread random drift on the infecting colour. High = colour evolves far from sim source.</td></tr>
+    <tr><td>seed density</td><td>Fraction of cells seeded at random on reset. Adjusting re-seeds immediately.</td></tr>
+    <tr><td>invert activation</td><td>When ON, dark sim pixels infect instead of bright ones.</td></tr>
+    <tr><td>sync to sim speed</td><td>Runs CA every other tick instead of every tick. Keeps CA coupled to sim rate.</td></tr>
+    <tr><td>RESET</td><td>Clears the infestation map and re-seeds random starting points at current seed density.</td></tr>
+  </table>
+  <p class="note">The parasite window is only visible in 1:1 view. It is hidden in 10×10 GRID and FULL modes.</p>
+
+  <h2>TEMPLATE SAVE / LOAD</h2>
+  <p>All simulation settings can be saved to a <code>.txt</code> file (human-readable JSON) and reloaded.</p>
+  <ul>
+    <li>Type a name in the <strong>template name</strong> field, then click <strong>SAVE SETTINGS .TXT</strong> to download.</li>
+    <li>Click <strong>LOAD SETTINGS .TXT</strong> to open a saved file. All sliders, buttons, and checkboxes sync instantly.</li>
+    <li>The template file stores: dither algorithm + parameters, simulation mode + physics values, rendering mode + visual parameters, post FX settings, cursor deform settings, and full-mode pixel size.</li>
+    <li>Templates do not store the image data — only the settings. Reload your source image separately.</li>
+  </ul>
+
+  <h2>KEYBOARD &amp; INTERACTION SHORTCUTS</h2>
+  <table>
+    <tr><th>action</th><th>description</th></tr>
+    <tr><td>Ctrl/Cmd+V</td><td>Paste image from clipboard (steps A and host window).</td></tr>
+    <tr><td>Drag &amp; drop</td><td>Drop image files onto the drop zones in steps A and the parasite panel.</td></tr>
+    <tr><td>Mouse on canvas</td><td>Cursor deformation (when enabled): push particles in direction of movement.</td></tr>
+    <tr><td>EXPLODE button</td><td>Instant velocity impulse outward from each segment centre.</td></tr>
+    <tr><td>RESET POSITIONS</td><td>Returns all particles to home positions with zero velocity.</td></tr>
+    <tr><td>RE-RUN PIPELINE</td><td>Re-dithers the current source and rebuilds all particles from scratch.</td></tr>
+    <tr><td>PAUSE / RESUME</td><td>Freezes the simulation loop entirely.</td></tr>
+    <tr><td>? HELP</td><td>This document.</td></tr>
+  </table>
+
+  <h2>TECHNICAL NOTES</h2>
+  <ul>
+    <li>The canvas is always 48×48 internal pixels. Display scale is CSS-only — the simulation always runs at native 48×48 resolution.</li>
+    <li>Value noise uses a 256×256 permutation table. fBm (fractal Brownian motion) stacks 3 octaves.</li>
+    <li>All 2304 particles update every frame. Performance depends on simulation mode and browser.</li>
+    <li>The 10×10 grid maintains 10 independent particle systems (one per column) and renders 100 display canvases per frame — expect lower frame rates on older hardware.</li>
+    <li>Template files are plain JSON with a <code>_meta</code> block containing name, version, and timestamp.</li>
+  </ul>
+
+</div>
+</div>
+</body>
+</html>

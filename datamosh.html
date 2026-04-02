@@ -1,0 +1,1262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>DATAMOSH // bio-growth frame infection</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#080808;--s1:#101010;--s2:#161616;--s3:#1e1e1e;
+  --br:#222;--br2:#333;
+  --t:#c8c8c8;--t2:#777;--t3:#3a3a3a;
+  --gr:#3ec93e;--cy:#3ec9c9;--rd:#c93e3e;--am:#c9a03e;--mg:#c93ec9;
+  --mono:'Courier New',monospace;--r:3px;
+}
+body{background:var(--bg);color:var(--t);font-family:var(--mono);font-size:12px;padding:14px;line-height:1.5}
+h1{font-size:12px;font-weight:normal;letter-spacing:.22em;color:var(--cy);display:inline}
+.sub{font-size:10px;color:var(--t3);letter-spacing:.06em;margin-left:10px}
+.topbar{display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap}
+
+/* canvases */
+.display{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+.panel{background:var(--s1);border:0.5px solid var(--br);border-radius:var(--r);padding:8px;display:flex;flex-direction:column;gap:6px}
+.panel-label{font-size:9px;color:var(--t3);letter-spacing:.12em}
+canvas{display:block;width:100%;image-rendering:pixelated;image-rendering:crisp-edges;background:#000;border:0.5px solid var(--br);border-radius:2px}
+#cvMain{aspect-ratio:1}
+#cvKey{aspect-ratio:1}
+
+/* progress bar */
+.prog-track{height:3px;background:var(--s3);border-radius:2px;overflow:hidden;margin-top:2px}
+.prog-fill{height:100%;background:var(--gr);border-radius:2px;transition:width .1s linear;width:0%}
+.stat-row{display:flex;gap:12px;font-size:10px;color:var(--t3)}
+.stat-val{color:var(--t2)}
+
+/* sections */
+.section{background:var(--s1);border:0.5px solid var(--br);border-radius:var(--r);padding:10px;margin-bottom:8px}
+.sec-title{font-size:9px;color:var(--t3);letter-spacing:.12em;margin-bottom:8px}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:6px}
+label{font-size:11px;color:var(--t2);display:flex;align-items:center;gap:5px}
+input[type=range]{-webkit-appearance:none;appearance:none;height:3px;background:var(--br2);border-radius:2px;outline:none;width:68px;cursor:pointer}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:10px;height:10px;border-radius:50%;background:var(--cy);cursor:pointer}
+input[type=number],input[type=text]{background:var(--s3);border:0.5px solid var(--br2);border-radius:var(--r);color:var(--t);font-family:var(--mono);font-size:11px;padding:2px 5px;width:66px;outline:none}
+select{background:var(--s3);border:0.5px solid var(--br2);border-radius:var(--r);color:var(--t);font-family:var(--mono);font-size:11px;padding:2px 5px;outline:none;cursor:pointer}
+.btn{background:transparent;border:0.5px solid var(--br2);border-radius:var(--r);color:var(--t2);font-family:var(--mono);font-size:11px;padding:4px 9px;cursor:pointer;transition:.1s}
+.btn:hover{border-color:var(--t2);color:var(--t)}
+.btn:active{transform:scale(.97)}
+.btn-gr{border-color:var(--gr);color:var(--gr)}.btn-gr:hover{background:rgba(62,201,62,.07)}
+.btn-cy{border-color:var(--cy);color:var(--cy)}.btn-cy:hover{background:rgba(62,201,201,.07)}
+.btn-rd{border-color:var(--rd);color:var(--rd)}.btn-rd:hover{background:rgba(201,62,62,.07)}
+.btn-am{border-color:var(--am);color:var(--am)}.btn-am:hover{background:rgba(201,160,62,.07)}
+.btn-mg{border-color:var(--mg);color:var(--mg)}.btn-mg:hover{background:rgba(201,62,201,.07)}
+.file-lbl{display:inline-block;border:0.5px solid var(--br2);border-radius:var(--r);color:var(--t3);font-family:var(--mono);font-size:11px;padding:4px 9px;cursor:pointer;transition:.1s}
+.file-lbl:hover{border-color:var(--t2);color:var(--t2)}
+input[type=file]{display:none}
+.btn-row{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+.status{font-size:10px;color:var(--t3);margin-top:5px;min-height:13px}
+.status.ok{color:var(--gr)}.status.err{color:var(--rd)}.status.warn{color:var(--am)}
+.val{color:var(--t);min-width:28px;text-align:right;font-size:11px}
+hr{border:none;border-top:0.5px solid var(--br);margin:8px 0}
+textarea{width:100%;background:var(--s3);border:0.5px solid var(--br2);border-radius:var(--r);color:var(--cy);font-family:var(--mono);font-size:10px;padding:7px;resize:none;outline:none;line-height:1.6}
+
+/* help panel */
+#helpPanel{display:none;background:var(--s1);border:0.5px solid var(--br2);border-radius:var(--r);padding:14px;margin-bottom:12px;line-height:1.8}
+.hd{font-size:9px;color:var(--t3);letter-spacing:.12em;margin:10px 0 4px}
+.hd:first-child{margin-top:0}
+.ht{font-size:11px;color:var(--t2)}
+.ht b{color:var(--t);font-weight:normal}
+.ht .key{color:var(--cy)}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <h1>DATAMOSH</h1>
+  <span class="sub">bio-growth frame infection // Gray-Scott + frame bleed // 30s loop</span>
+  <button class="btn" id="helpBtn" onclick="toggleHelp()">? HELP</button>
+</div>
+
+<!-- HELP -->
+<div id="helpPanel">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+    <span style="font-size:10px;color:var(--cy);letter-spacing:.1em">DATAMOSH // BIO-GROWTH ENGINE</span>
+    <button class="btn btn-rd" onclick="toggleHelp()">close</button>
+  </div>
+
+  <div class="hd">WHAT THIS IS</div>
+  <div class="ht">Real datamoshing: <b>frame bleeding</b>. Each frame is not drawn fresh — it samples pixels from the <b>previous frame at displaced positions</b>, creating smear and bleed artifacts. The displacement field is driven by a <b>Gray-Scott reaction-diffusion system</b>, a biological growth simulation that produces coral, spot, maze, and filament patterns.</div>
+
+  <div class="hd">GRAY-SCOTT REACTION-DIFFUSION</div>
+  <div class="ht">Two chemicals U and V interact: U feeds V, V autocatalyses. The equations are <b>du/dt = Du·∇²u − uv² + F(1−u)</b> and <b>dv/dt = Dv·∇²v + uv² − (F+k)v</b>. F (feed rate) and k (kill rate) determine the pattern type. The <b>gradient of V</b> at each pixel becomes the displacement vector for frame bleeding.</div>
+
+  <div class="hd">PRESETS</div>
+  <div class="ht">
+    <b>coral</b> F=0.0545 k=0.062 — branching structures, spreading tendrils<br>
+    <b>spots</b> F=0.035 k=0.065 — mitosis-like cell division, dot patterns<br>
+    <b>maze</b> F=0.029 k=0.057 — labyrinthine channels, slow crawl<br>
+    <b>worms</b> F=0.046 k=0.063 — writhing filaments, high motion<br>
+    <b>bubbles</b> F=0.098 k=0.057 — foam decay, rapid diffuse spread
+  </div>
+
+  <div class="hd">FRAME BLEED (DATAMOSH)</div>
+  <div class="ht"><b>Bleed</b> = how much of the previous frame persists (0.80 = heavy mosh, 0.97 = subtle). <b>Displacement</b> = how far pixels are thrown by the RD gradient per frame. High bleed + high displacement = aggressive pixel smear. The infection front (high V) causes maximum bleed; settled areas let the host image through.</div>
+
+  <div class="hd">30-SECOND LOOP</div>
+  <div class="ht">The animation runs for 30 seconds then <b>rebirths</b>: the RD system reseeds from the same initial conditions, and the ghost buffer cross-fades back to the host image over 1.5 seconds. The loop count increments. Each loop is identical given the same seed.</div>
+
+  <div class="hd">THE NOISE KEY — AND WHY IT IS THE CURE</div>
+  <div class="ht">
+    When you click <b>Capture Key</b>, the current RD field (V-channel) is rendered as a <b>64×64 fluorescence image</b> — this is the noise evolution snapshot. The parameters (F, k, seed, displacement, bleed, generation count) are steganographically embedded in the LSBs of its pixels.<br><br>
+    <b>Why it is the cure:</b> Given the key, you can reconstruct <i>exactly</i> the same RD field at exactly the same generation. That field gave you the displacement vectors that distorted the host. Apply those same vectors in <b>reverse</b> (negate dx/dy), scan the infected image back through the anti-displacement, and the host is recovered. The RD field is deterministic — same seed + same parameters + same generation count = identical displacement field = perfect inverse.
+  </div>
+
+  <div class="hd">KEY FORMAT (ASCII)</div>
+  <div class="ht"><span class="key">DMRD1|F0545|K062|S1337|D4|B88|G900|DU2097|DV105</span><br>
+  Fields: F×10000, k×1000, seed, displacement, bleed×100, generation at capture, Du×10000, Dv×1000.</div>
+
+  <div class="hd">WORKFLOW</div>
+  <div class="ht">
+    1. Load a host image (optional — runs on black if none)<br>
+    2. Choose a preset or dial in F/k manually<br>
+    3. Click Play — watch the infection grow for up to 30s<br>
+    4. Click Capture Key at any point — freezes the key at that generation<br>
+    5. Save infected frame (download canvas) + save key (PNG or .txt)<br>
+    6. To cure: load infected image as host, load key, click Apply Cure
+  </div>
+
+  <div class="hd">NOTES</div>
+  <div class="ht">All computation runs client-side. Key PNG must be saved losslessly (PNG, not JPEG). The RD simulation runs at 128×128 with 6 steps per animation frame at ~30fps.</div>
+</div>
+
+<!-- DISPLAY -->
+<div class="display">
+  <div class="panel">
+    <div class="panel-label">INFECTED / GROWING &mdash; 30s LOOP</div>
+    <canvas id="cvMain" width="128" height="128"></canvas>
+    <div class="prog-track"><div class="prog-fill" id="progFill"></div></div>
+    <div class="stat-row">
+      <span>t <span class="stat-val" id="dispTime">0.0s</span></span>
+      <span>gen <span class="stat-val" id="dispGen">0</span></span>
+      <span>loop <span class="stat-val" id="dispLoop">0</span></span>
+      <span>V̄ <span class="stat-val" id="dispV">0.000</span></span>
+      <span>mode <span class="stat-val" id="dispMode">gs</span></span>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-gr" id="btnPlay" onclick="togglePlay()">&#9654; PLAY</button>
+      <button class="btn" onclick="resetSim()">RESET</button>
+      <button class="btn btn-am" onclick="captureKey()">CAPTURE KEY</button>
+      <button class="btn" onclick="dlCanvas('cvMain','infected.png')">&#8595; SAVE FRAME</button>
+    </div>
+  </div>
+  <div class="panel">
+    <div class="panel-label">NOISE EVOLUTION KEY &mdash; <span style="color:var(--am)">THE CURE</span></div>
+    <canvas id="cvKey" width="64" height="64"></canvas>
+    <div style="font-size:9px;color:var(--t3);margin-top:2px">V-field snapshot + embedded parameters</div>
+    <div class="btn-row">
+      <button class="btn btn-am" onclick="dlCanvas('cvKey','key.png')">&#8595; SAVE KEY PNG</button>
+      <button class="btn" onclick="saveKeyTxt()">&#8595; SAVE KEY TXT</button>
+    </div>
+    <div class="status" id="stKey">no key captured yet</div>
+  </div>
+</div>
+
+<!-- LOAD HOST -->
+<div class="section">
+  <div class="sec-title">01 &mdash; HOST IMAGE (substrate)</div>
+  <div class="row">
+    <input type="file" id="hostInput" accept="image/*" onchange="loadHost(this)">
+    <label for="hostInput" class="file-lbl">LOAD HOST IMAGE</label>
+    <button class="btn" onclick="clearHost()">clear host</button>
+    <span class="status" id="stHost">no host — running on black</span>
+  </div>
+</div>
+
+<!-- RD PARAMS -->
+<div class="section">
+  <div class="sec-title">02 &mdash; GROWTH MODE + PARAMETERS</div>
+  <div class="row">
+    <label>mode
+      <select id="simMode" onchange="onModeChange()">
+        <optgroup label="— Gray-Scott RD —">
+          <option value="gs">Gray-Scott</option>
+        </optgroup>
+        <optgroup label="— presets —">
+          <option value="gs_coral">coral / branches</option>
+          <option value="gs_spots">spots / mitosis</option>
+          <option value="gs_maze">maze / labyrinth</option>
+          <option value="gs_worms">worms / filaments</option>
+          <option value="gs_bubbles">bubbles / foam</option>
+          <option value="gs_spirals">spirals</option>
+          <option value="gs_fingerprint">fingerprint</option>
+          <option value="gs_mitosis">mitosis</option>
+        </optgroup>
+        <optgroup label="— cellular automata —">
+          <option value="cyclic">cyclic CA (rotating waves)</option>
+          <option value="lenia">Lenia (continuous CA)</option>
+        </optgroup>
+        <optgroup label="— agent-based —">
+          <option value="physarum">Physarum (slime mold)</option>
+        </optgroup>
+      </select>
+    </label>
+    <label>seed <input type="number" id="rdSeed" value="1337" min="0" max="99999"></label>
+  </div>
+  <div class="row" id="gsParams">
+    <label>F (feed)
+      <input type="range" id="rdF" min="10" max="120" value="55" step="1"
+        oninput="syncRdF(this.value)">
+      <span class="val" id="vF">0.0545</span>
+    </label>
+    <label>k (kill)
+      <input type="range" id="rdK" min="40" max="80" value="62" step="1"
+        oninput="syncRdK(this.value)">
+      <span class="val" id="vK">0.0620</span>
+    </label>
+  </div>
+  <div class="row" id="gsParams2">
+    <label>Du
+      <input type="range" id="rdDu" min="100" max="400" value="210" step="5"
+        oninput="syncRdDu(this.value)">
+      <span class="val" id="vDu">0.210</span>
+    </label>
+    <label>Dv
+      <input type="range" id="rdDv" min="50" max="200" value="105" step="5"
+        oninput="syncRdDv(this.value)">
+      <span class="val" id="vDv">0.105</span>
+    </label>
+    <label>steps/frame
+      <input type="range" id="rdSpf" min="1" max="12" value="6" step="1"
+        oninput="document.getElementById('vSpf').textContent=this.value;stepsPerFrame=parseInt(this.value)">
+      <span class="val" id="vSpf">6</span>
+    </label>
+  </div>
+  <hr>
+  <div style="font-size:9px;color:var(--t3);letter-spacing:.1em;margin-bottom:6px">PERLIN NOISE MODULATION</div>
+  <div class="row">
+    <label>noise strength
+      <input type="range" id="noiseStr" min="0" max="100" value="0" step="5"
+        oninput="document.getElementById('vNoiseStr').textContent=(this.value/100).toFixed(2)">
+      <span class="val" id="vNoiseStr">0.00</span>
+    </label>
+    <label>noise scale
+      <input type="range" id="noiseScale" min="10" max="80" value="30" step="5"
+        oninput="document.getElementById('vNoiseScale').textContent=(this.value/10).toFixed(1)">
+      <span class="val" id="vNoiseScale">3.0</span>
+    </label>
+    <label>animate noise <input type="checkbox" id="noiseAnim"></label>
+  </div>
+  <div class="btn-row">
+    <button class="btn" onclick="resetSim()">Re-seed</button>
+  </div>
+</div>
+
+<!-- DATAMOSH PARAMS -->
+<div class="section">
+  <div class="sec-title">03 &mdash; DATAMOSH / FRAME BLEED</div>
+  <div class="row">
+    <label>displacement
+      <input type="range" id="dispStr" min="1" max="16" value="4" step="1"
+        oninput="document.getElementById('vDisp').textContent=this.value;dispStrength=parseInt(this.value)">
+      <span class="val" id="vDisp">4</span>
+    </label>
+    <label>bleed
+      <input type="range" id="bleedStr" min="70" max="98" value="88" step="1"
+        oninput="syncBleed(this.value)">
+      <span class="val" id="vBleed">0.88</span>
+    </label>
+  </div>
+  <div class="row">
+    <label>color mode
+      <select id="colorMode">
+        <option value="bio">bio (green/amber)</option>
+        <option value="thermal">thermal</option>
+        <option value="ghost">ghost (desaturated)</option>
+        <option value="neon">neon (magenta/cyan)</option>
+        <option value="raw">raw RD field</option>
+      </select>
+    </label>
+    <label>loop duration
+      <input type="range" id="loopDur" min="10" max="60" value="30" step="5"
+        oninput="document.getElementById('vLoop').textContent=this.value+'s';LOOP_MS=parseInt(this.value)*1000">
+      <span class="val" id="vLoop">30s</span>
+    </label>
+  </div>
+</div>
+
+<!-- CURE -->
+<div class="section">
+  <div class="sec-title">04 &mdash; APPLY CURE</div>
+  <div class="row">
+    <input type="file" id="keyImgInput" accept="image/*" onchange="loadKeyImg(this)">
+    <label for="keyImgInput" class="file-lbl">LOAD KEY PNG</label>
+    <button class="btn btn-mg" onclick="applyCure()">APPLY CURE</button>
+  </div>
+  <hr>
+  <div style="font-size:9px;color:var(--t3);margin-bottom:5px">or paste ascii key:</div>
+  <textarea id="asciiKeyArea" rows="2" placeholder="DMRD1|F0545|K062|S1337|D4|B88|G900|DU2097|DV105"></textarea>
+  <div class="btn-row">
+    <button class="btn" onclick="copyAscii()">COPY</button>
+    <button class="btn btn-mg" onclick="cureFromAscii()">CURE FROM ASCII</button>
+  </div>
+  <div class="status" id="stCure"></div>
+</div>
+
+<script>
+/* =========================================================
+   CONSTANTS & STATE
+   ========================================================= */
+var W=128,H=128,KW=64,KH=64;
+var LOOP_MS=30000;
+var REBIRTH_MS=1500;   // cross-fade duration at loop point
+
+var u=new Float32Array(W*H), v=new Float32Array(W*H);
+var un=new Float32Array(W*H), vn=new Float32Array(W*H);
+var hostRGBA=null;        // Uint8ClampedArray W*H*4
+var ghost=null;           // ImageData W*H (previous rendered frame)
+var ghostRebirth=null;    // snapshot at rebirth trigger for crossfade
+
+var rdF=0.0545, rdK=0.062, rdDu=0.2097, rdDv=0.105;
+var rdSeed=1337;
+var stepsPerFrame=6;
+var dispStrength=4;
+var bleedAmt=0.88;
+
+var animId=null, isPlaying=false;
+var elapsedMs=0, lastTs=null;
+var totalGen=0, loopCount=0;
+var rebirthTimer=0;   // ms into rebirth crossfade (0 = not in rebirth)
+var inRebirth=false;
+
+var capturedKeyParams=null;  // {F,k,Du,Dv,seed,disp,bleed,gen}
+var loadedKeyParams=null;
+
+/* =========================================================
+   SEEDED RNG (Mulberry32)
+   ========================================================= */
+function rng(seed){
+  var s=seed>>>0;
+  return function(){
+    s=s+0x6D2B79F5|0;
+    var t=Math.imul(s^s>>>15,1|s);
+    t=t+Math.imul(t^t>>>7,61|t)^t;
+    return((t^t>>>14)>>>0)/4294967296;
+  };
+}
+
+/* =========================================================
+   PERLIN NOISE (2D, seeded)
+   ========================================================= */
+var _perm=new Uint8Array(512);
+function buildPerm(seed){
+  var r=rng(seed), p=new Uint8Array(256);
+  for(var i=0;i<256;i++) p[i]=i;
+  for(var i=255;i>0;i--){var j=Math.floor(r()*(i+1)),t=p[i];p[i]=p[j];p[j]=t;}
+  for(var i=0;i<512;i++) _perm[i]=p[i&255];
+}
+function _fade(t){return t*t*t*(t*(t*6-15)+10);}
+function _lerp(a,b,t){return a+(b-a)*t;}
+function _grad(h,x,y){h&=3;var u=h<2?x:y,v=h<2?y:x;return((h&1)?-u:u)+((h&2)?-v:v);}
+function perlin2(x,y){
+  var xi=Math.floor(x)&255, yi=Math.floor(y)&255;
+  var xf=x-Math.floor(x), yf=y-Math.floor(y);
+  var u=_fade(xf), v2=_fade(yf);
+  var aa=_perm[_perm[xi]+yi],ab=_perm[_perm[xi]+yi+1];
+  var ba=_perm[_perm[xi+1]+yi],bb=_perm[_perm[xi+1]+yi+1];
+  return _lerp(_lerp(_grad(aa,xf,yf),_grad(ba,xf-1,yf),u),
+               _lerp(_grad(ab,xf,yf-1),_grad(bb,xf-1,yf-1),u),v2)*0.5+0.5;
+}
+/* Fractal Brownian Motion — 4 octaves */
+function fbm(x,y,freq,amp){
+  var s=0,a=1,f=freq||1,mx=0;
+  for(var i=0;i<4;i++){s+=perlin2(x*f,y*f)*a;mx+=a;f*=2;a*=0.5;}
+  return s/mx;
+}
+
+/* Noise fields recomputed on reset */
+var noiseF=new Float32Array(W*H);   /* spatial F modulation */
+var noiseK=new Float32Array(W*H);   /* spatial k modulation */
+var noiseDx=new Float32Array(W*H);  /* extra displacement X */
+var noiseDy=new Float32Array(W*H);  /* extra displacement Y */
+
+function getNoiseStr(){ return (parseFloat(document.getElementById('noiseStr').value)||0)/100; }
+function getNoiseScale(){ return (parseFloat(document.getElementById('noiseScale').value)||30)/10; }
+
+function buildNoiseFields(seed){
+  buildPerm(seed);
+  var ns=getNoiseStr();
+  var scale=getNoiseScale();
+  for(var y=0;y<H;y++){
+    for(var x=0;x<W;x++){
+      var i=y*W+x;
+      var nx=x/W*scale, ny=y/H*scale;
+      noiseF[i]=fbm(nx,ny,1);          /* 0-1, scaled later by ns */
+      noiseK[i]=fbm(nx+100,ny+100,1);  /* 0-1 */
+      noiseDx[i]=(fbm(nx+200,ny,2)-0.5)*2;   /* -1..1 */
+      noiseDy[i]=(fbm(nx,ny+200,2)-0.5)*2;   /* -1..1 */
+    }
+  }
+}
+
+/* =========================================================
+   SIM MODE STATE
+   ========================================================= */
+var simMode='gs';  /* 'gs' | 'physarum' | 'lenia' | 'cyclic' */
+
+/* =========================================================
+   PHYSARUM SLIME MOLD
+   ========================================================= */
+var PHY_N=1800;          /* agents */
+var phyX=new Float32Array(PHY_N);
+var phyY=new Float32Array(PHY_N);
+var phyA=new Float32Array(PHY_N);   /* angle radians */
+var phyTrail=new Float32Array(W*H); /* chemical trail */
+var phyTrailNext=new Float32Array(W*H);
+var PHY_SA=Math.PI/4;   /* sensor angle */
+var PHY_SD=9;            /* sensor distance */
+var PHY_RA=Math.PI/4;   /* rotation angle */
+var PHY_SS=1.5;          /* step size */
+var PHY_DECAY=0.92;
+var PHY_DIFF=0.3;
+
+function initPhysarum(seed){
+  var r=rng(seed);
+  for(var i=0;i<PHY_N;i++){
+    phyX[i]=r()*W; phyY[i]=r()*H; phyA[i]=r()*Math.PI*2;
+  }
+  phyTrail.fill(0);
+  /* seed center cluster */
+  for(var i=0;i<PHY_N;i++){
+    var cx2=W/2+(r()-0.5)*30, cy2=H/2+(r()-0.5)*30;
+    phyX[i]=cx2; phyY[i]=cy2;
+  }
+}
+
+function phySense(ax,ay,angle,dist){
+  var sx=((ax+Math.cos(angle)*dist)%W+W)%W;
+  var sy=((ay+Math.sin(angle)*dist)%H+H)%H;
+  return phyTrail[Math.floor(sy)*W+Math.floor(sx)];
+}
+
+function physarumStep(){
+  /* diffuse + decay trail */
+  for(var y=0;y<H;y++){
+    for(var x=0;x<W;x++){
+      var sum=0;
+      for(var dy=-1;dy<=1;dy++) for(var dx=-1;dx<=1;dx++){
+        sum+=phyTrail[((y+dy+H)%H)*W+((x+dx+W)%W)];
+      }
+      phyTrailNext[y*W+x]=sum/9*PHY_DECAY;
+    }
+  }
+  var tmp=phyTrail;phyTrail=phyTrailNext;phyTrailNext=tmp;
+
+  /* move agents */
+  var r=rng(rdSeed+totalGen);
+  for(var i=0;i<PHY_N;i++){
+    var fwd=phySense(phyX[i],phyY[i],phyA[i],PHY_SD);
+    var lft=phySense(phyX[i],phyY[i],phyA[i]-PHY_SA,PHY_SD);
+    var rgt=phySense(phyX[i],phyY[i],phyA[i]+PHY_SA,PHY_SD);
+    if(fwd>lft&&fwd>rgt){ /* continue */
+    } else if(lft>rgt){ phyA[i]-=PHY_RA;
+    } else if(rgt>lft){ phyA[i]+=PHY_RA;
+    } else { phyA[i]+=(r()-0.5)*PHY_RA; }
+    phyX[i]=((phyX[i]+Math.cos(phyA[i])*PHY_SS)%W+W)%W;
+    phyY[i]=((phyY[i]+Math.sin(phyA[i])*PHY_SS)%H+H)%H;
+    var ti=Math.floor(phyY[i])*W+Math.floor(phyX[i]);
+    phyTrail[ti]=Math.min(1,phyTrail[ti]+0.4);
+  }
+  /* copy trail into v field for rendering */
+  for(var i=0;i<W*H;i++){ v[i]=phyTrail[i]; u[i]=1-v[i]*0.6; }
+}
+
+/* =========================================================
+   LENIA CONTINUOUS CA
+   ========================================================= */
+var leniaGrid=new Float32Array(W*H);
+var leniaNext=new Float32Array(W*H);
+var LENIA_R=7;    /* kernel radius */
+var LENIA_DT=0.1;
+var LENIA_MU=0.14, LENIA_SIG=0.014;  /* growth mapping params */
+
+function leniaKernel(r, R){
+  /* Shell kernel: peaks at r = R/2 */
+  var rn=r/R;
+  if(rn<0||rn>1) return 0;
+  return Math.exp(4-(1/(rn*(1-rn)+1e-6)));
+}
+
+var _lenKernels=[];
+var _lenKernelSum=0;
+function buildLeniaKernel(){
+  _lenKernels=[];_lenKernelSum=0;
+  for(var dy=-LENIA_R;dy<=LENIA_R;dy++){
+    for(var dx=-LENIA_R;dx<=LENIA_R;dx++){
+      var r=Math.sqrt(dx*dx+dy*dy);
+      var k=leniaKernel(r,LENIA_R);
+      if(k>1e-6){_lenKernels.push({dx:dx,dy:dy,k:k});_lenKernelSum+=k;}
+    }
+  }
+}
+buildLeniaKernel();
+
+function leniaGrowth(n){
+  return 2*Math.exp(-(n-LENIA_MU)*(n-LENIA_MU)/(2*LENIA_SIG*LENIA_SIG))-1;
+}
+
+function initLenia(seed){
+  leniaGrid.fill(0);
+  var r=rng(seed);
+  /* scatter blobs */
+  for(var b=0;b<8;b++){
+    var cx2=Math.floor(r()*W),cy2=Math.floor(r()*H),rad=6+Math.floor(r()*8);
+    for(var dy=-rad;dy<=rad;dy++) for(var dx=-rad;dx<=rad;dx++){
+      if(dx*dx+dy*dy<=rad*rad){
+        var nx=((cx2+dx)%W+W)%W,ny=((cy2+dy)%H+H)%H;
+        leniaGrid[ny*W+nx]=r()*0.8;
+      }
+    }
+  }
+}
+
+function leniaStep(){
+  for(var y=0;y<H;y++){
+    for(var x=0;x<W;x++){
+      var nb=0;
+      for(var ki=0;ki<_lenKernels.length;ki++){
+        var kk=_lenKernels[ki];
+        var nx=((x+kk.dx)%W+W)%W, ny=((y+kk.dy)%H+H)%H;
+        nb+=leniaGrid[ny*W+nx]*kk.k;
+      }
+      nb/=_lenKernelSum;
+      var g=leniaGrowth(nb);
+      leniaNext[y*W+x]=Math.max(0,Math.min(1,leniaGrid[y*W+x]+LENIA_DT*g));
+    }
+  }
+  var tmp=leniaGrid;leniaGrid=leniaNext;leniaNext=tmp;
+  for(var i=0;i<W*H;i++){v[i]=leniaGrid[i];u[i]=1-leniaGrid[i]*0.7;}
+}
+
+/* =========================================================
+   CYCLIC CA
+   ========================================================= */
+var CYCLIC_K=12;     /* number of states */
+var CYCLIC_T=2;      /* threshold */
+var cyclicGrid=new Uint8Array(W*H);
+var cyclicNext=new Uint8Array(W*H);
+
+function initCyclic(seed){
+  var r=rng(seed);
+  for(var i=0;i<W*H;i++) cyclicGrid[i]=Math.floor(r()*CYCLIC_K);
+}
+
+function cyclicStep(){
+  for(var y=0;y<H;y++){
+    var ym1=((y-1+H)%H)*W, yp1=((y+1)%H)*W, yi=y*W;
+    for(var x=0;x<W;x++){
+      var cur=cyclicGrid[yi+x];
+      var succ=(cur+1)%CYCLIC_K;
+      var count=0;
+      var xm1=(x-1+W)%W, xp1=(x+1)%W;
+      if(cyclicGrid[ym1+xm1]===succ) count++;
+      if(cyclicGrid[ym1+x]===succ)   count++;
+      if(cyclicGrid[ym1+xp1]===succ) count++;
+      if(cyclicGrid[yi+xm1]===succ)  count++;
+      if(cyclicGrid[yi+xp1]===succ)  count++;
+      if(cyclicGrid[yp1+xm1]===succ) count++;
+      if(cyclicGrid[yp1+x]===succ)   count++;
+      if(cyclicGrid[yp1+xp1]===succ) count++;
+      cyclicNext[yi+x]=count>=CYCLIC_T?succ:cur;
+    }
+  }
+  var tmp=cyclicGrid;cyclicGrid=cyclicNext;cyclicNext=tmp;
+  /* map states to v,u for rendering & displacement */
+  var inv=1/(CYCLIC_K-1);
+  for(var i=0;i<W*H;i++){v[i]=cyclicGrid[i]*inv;u[i]=1-v[i];}
+}
+
+/* =========================================================
+   GRAY-SCOTT PRESETS + UNIFIED INIT/STEP
+   ========================================================= */
+var PRESETS_RD={
+  coral:   {F:0.0545,k:0.062, Du:0.2097,Dv:0.105},
+  spots:   {F:0.035, k:0.065, Du:0.2097,Dv:0.105},
+  maze:    {F:0.029, k:0.057, Du:0.2097,Dv:0.105},
+  worms:   {F:0.046, k:0.063, Du:0.2097,Dv:0.105},
+  bubbles: {F:0.098, k:0.057, Du:0.2097,Dv:0.105},
+  spirals: {F:0.010, k:0.041, Du:0.2097,Dv:0.105},
+  fingerprint:{F:0.037,k:0.060,Du:0.2097,Dv:0.105},
+  mitosis: {F:0.028, k:0.062, Du:0.2097,Dv:0.105}
+};
+
+function initRD(){
+  simMode=document.getElementById('simMode').value||'gs';
+  rdSeed=parseInt(document.getElementById('rdSeed').value)||1337;
+  buildPerm(rdSeed+999);
+  buildNoiseFields(rdSeed);
+
+  u.fill(1.0); v.fill(0.0);
+
+  if(simMode==='physarum'){
+    initPhysarum(rdSeed); return;
+  }
+  if(simMode==='lenia'){
+    initLenia(rdSeed); return;
+  }
+  if(simMode==='cyclic'){
+    initCyclic(rdSeed); return;
+  }
+
+  /* Gray-Scott init — Perlin-seeded blobs */
+  var r=rng(rdSeed);
+  var noiseStr=getNoiseStr();
+  var scale=getNoiseScale();
+  /* scatter seed spots, size modulated by noise */
+  var nSpots=12+Math.floor(r()*10);
+  for(var i=0;i<nSpots;i++){
+    var cx=Math.floor(r()*W), cy=Math.floor(r()*H);
+    var nv=fbm(cx/W*scale,cy/H*scale,1);
+    var rad=1+Math.floor(r()*4+nv*3);
+    for(var dy=-rad;dy<=rad;dy++){
+      for(var dx=-rad;dx<=rad;dx++){
+        if(dx*dx+dy*dy<=rad*rad){
+          var nx=((cx+dx)%W+W)%W, ny=((cy+dy)%H+H)%H;
+          u[ny*W+nx]=0.5+r()*0.1-0.05;
+          v[ny*W+nx]=0.25+r()*0.1-0.05;
+        }
+      }
+    }
+  }
+  /* perlin noise seed overlay */
+  if(noiseStr>0){
+    for(var yi=0;yi<H;yi++) for(var xi=0;xi<W;xi++){
+      var nv=fbm(xi/W*scale,yi/H*scale,1);
+      if(nv>0.72){ v[yi*W+xi]=Math.min(1,v[yi*W+xi]+nv*noiseStr*0.4); }
+    }
+  }
+}
+
+function rdStep(){
+  if(simMode==='physarum'){physarumStep();return;}
+  if(simMode==='lenia'){leniaStep();return;}
+  if(simMode==='cyclic'){cyclicStep();return;}
+
+  /* Gray-Scott with spatial noise modulation of F and k */
+  var noiseStr=getNoiseStr();
+  var noiseAnim=document.getElementById('noiseAnim').checked;
+  var scale=getNoiseScale();
+  var animOff=noiseAnim?(totalGen*0.0003):0;
+
+  for(var y=0;y<H;y++){
+    var ym1=((y-1+H)%H)*W, yp1=((y+1)%H)*W, yi=y*W;
+    for(var x=0;x<W;x++){
+      var i=yi+x;
+      var xm1=(x-1+W)%W, xp1=(x+1)%W;
+      var luU=u[ym1+x]+u[yp1+x]+u[yi+xm1]+u[yi+xp1]-4*u[i];
+      var luV=v[ym1+x]+v[yp1+x]+v[yi+xm1]+v[yi+xp1]-4*v[i];
+      var uvv=u[i]*v[i]*v[i];
+      var localF=rdF, localK=rdK;
+      if(noiseStr>0){
+        var nf=noiseAnim?fbm(x/W*scale+animOff,y/H*scale,1):noiseF[i];
+        var nk=noiseAnim?fbm(x/W*scale,y/H*scale+animOff,1):noiseK[i];
+        /* noiseStr is 0-1; max delta ~20% of F/k */
+        localF=Math.max(0.001,rdF+(nf-0.5)*noiseStr*rdF*0.4);
+        localK=Math.max(0.001,rdK+(nk-0.5)*noiseStr*rdK*0.3);
+      }
+      un[i]=u[i]+rdDu*luU-uvv+localF*(1-u[i]);
+      vn[i]=v[i]+rdDv*luV+uvv-(localF+localK)*v[i];
+      if(un[i]<0)un[i]=0; if(un[i]>1)un[i]=1;
+      if(vn[i]<0)vn[i]=0; if(vn[i]>1)vn[i]=1;
+    }
+  }
+  var tmp=u;u=un;un=tmp;
+  tmp=v;v=vn;vn=tmp;
+}
+
+/* =========================================================
+   COLORMAP helpers
+   ========================================================= */
+function colorBio(vi,ui,r,g,b){
+  var life=Math.min(1,vi*2), decay=(1-ui)*0.5;
+  return[Math.min(255,r+decay*160+life*20),Math.min(255,g+life*210+decay*30),Math.min(255,b+life*80+decay*10)];
+}
+function colorThermal(vi,ui,r2,g2,b2){
+  /* black-body: black→red→orange→yellow→white */
+  var t=vi;
+  var rr=Math.min(255,t*3*255), gg=Math.min(255,Math.max(0,(t-0.33)*3*255)), bb=Math.min(255,Math.max(0,(t-0.66)*3*255));
+  return[Math.min(255,r2*0.3+rr*0.7),Math.min(255,g2*0.3+gg*0.7),Math.min(255,b2*0.3+bb*0.7)];
+}
+function colorGhost(vi,ui,r2,g2,b2){
+  var t=vi*40;
+  return[Math.min(255,r2+t),Math.min(255,g2+t),Math.min(255,b2+t)];
+}
+function colorNeon(vi,ui,r2,g2,b2){
+  return[Math.min(255,r2+vi*220+(1-ui)*40),Math.min(255,g2+vi*15),Math.min(255,b2+vi*240)];
+}
+function colorRaw(vi,ui,r2,g2,b2){
+  /* show both u and v channels for diagnostic */
+  return[Math.floor(vi*255),Math.floor((1-ui)*200),Math.floor(ui*180)];
+}
+/* Cyclic CA: hue-rotate through spectrum by state */
+function colorCyclic(vi,ui,r2,g2,b2){
+  var h=vi*6; var i=Math.floor(h), f=h-i;
+  var q=1-f, t2=f;
+  var cr,cg,cb;
+  switch(i%6){
+    case 0:cr=255;cg=Math.floor(t2*255);cb=0;break;
+    case 1:cr=Math.floor(q*255);cg=255;cb=0;break;
+    case 2:cr=0;cg=255;cb=Math.floor(t2*255);break;
+    case 3:cr=0;cg=Math.floor(q*255);cb=255;break;
+    case 4:cr=Math.floor(t2*255);cg=0;cb=255;break;
+    default:cr=255;cg=0;cb=Math.floor(q*255);
+  }
+  var m=0.6;
+  return[Math.min(255,r2*(1-m)+cr*m),Math.min(255,g2*(1-m)+cg*m),Math.min(255,b2*(1-m)+cb*m)];
+}
+/* Lenia: spectral violet-cyan glow */
+function colorLenia(vi,ui,r2,g2,b2){
+  var g=Math.pow(vi,0.6);
+  return[Math.min(255,r2*0.4+g*180),Math.min(255,g2*0.4+g*240),Math.min(255,b2*0.4+g*255)];
+}
+/* Physarum: yellow-gold mycelium */
+function colorPhysarum(vi,ui,r2,g2,b2){
+  return[Math.min(255,r2*0.5+vi*240),Math.min(255,g2*0.5+vi*190),Math.min(255,b2*0.5+vi*30)];
+}
+
+function getColorFn(){
+  var mode=document.getElementById('colorMode').value;
+  if(simMode==='cyclic') return colorCyclic;
+  if(simMode==='lenia')  return colorLenia;
+  if(simMode==='physarum') return colorPhysarum;
+  return {bio:colorBio,thermal:colorThermal,ghost:colorGhost,neon:colorNeon,raw:colorRaw}[mode]||colorBio;
+}
+
+/* =========================================================
+   RENDER FRAME
+   ========================================================= */
+function renderFrame(rebirthT){
+  var cvs=document.getElementById('cvMain');
+  var ctx=cvs.getContext('2d');
+  var colorFn=getColorFn();
+
+  var imgData=ctx.createImageData(W,H);
+  var d=imgData.data;
+  var bleedLocal=bleedAmt;
+  var rebirthBlend=rebirthT; /* 0=full bleed, 1=fully rebirthed to host */
+
+  for(var y=0;y<H;y++){
+    for(var x=0;x<W;x++){
+      var i=y*W+x;
+      var di=i*4;
+      var vi=v[i], ui=u[i];
+
+      /* RD gradient → displacement vector (central differences) + Perlin turbulence */
+      var vr=v[y*W+((x+1)%W)]-v[y*W+((x-1+W)%W)];
+      var vd=v[((y+1)%H)*W+x]-v[((y-1+H)%H)*W+x];
+      var noiseStr2=getNoiseStr();
+      var ndx=noiseStr2>0?noiseDx[i]*noiseStr2*dispStrength*1.5:0;
+      var ndy2=noiseStr2>0?noiseDy[i]*noiseStr2*dispStrength*1.5:0;
+      var dx=Math.round(vr*dispStrength*8+ndx);
+      var dy=Math.round(vd*dispStrength*8+ndy2);
+
+      /* Sample ghost buffer at displaced position */
+      var gx=((x+dx)%W+W)%W;
+      var gy=((y+dy)%H+H)%H;
+      var gi=(gy*W+gx)*4;
+
+      /* Host pixel at this position */
+      var hr2=0,hg=0,hb=0;
+      if(hostRGBA){
+        var hx2=Math.floor(x),hy2=Math.floor(y);
+        var hi=(hy2*W+hx2)*4;
+        hr2=hostRGBA[hi]; hg=hostRGBA[hi+1]; hb=hostRGBA[hi+2];
+      }
+
+      /* Active infection weight: strong at growth front */
+      var infW=Math.min(1,vi*2.5);
+      var localBleed=bleedLocal+infW*0.06;
+      if(localBleed>0.99)localBleed=0.99;
+
+      var r2,g2,b2;
+      if(ghost){
+        var ghostR=ghost.data[gi], ghostG=ghost.data[gi+1], ghostB=ghost.data[gi+2];
+
+        /* Rebirth crossfade: gradually replace ghost with host+RD seed */
+        if(rebirthBlend>0){
+          var rb=rebirthBlend;
+          ghostR=Math.round(ghostR*(1-rb)+hr2*rb);
+          ghostG=Math.round(ghostG*(1-rb)+hg*rb);
+          ghostB=Math.round(ghostB*(1-rb)+hb*rb);
+          /* also use ghost snapshot for smoother fade */
+          if(ghostRebirth){
+            var ri=gi;
+            ghostR=Math.round(ghostRebirth.data[ri]*(1-rb)+hr2*rb);
+            ghostG=Math.round(ghostRebirth.data[ri+1]*(1-rb)+hg*rb);
+            ghostB=Math.round(ghostRebirth.data[ri+2]*(1-rb)+hb*rb);
+          }
+        }
+
+        r2=Math.round(ghostR*localBleed+hr2*(1-localBleed));
+        g2=Math.round(ghostG*localBleed+hg*(1-localBleed));
+        b2=Math.round(ghostB*localBleed+hb*(1-localBleed));
+      } else {
+        r2=hr2; g2=hg; b2=hb;
+      }
+
+      /* Apply color overlay */
+      var col=colorFn(vi,ui,r2,g2,b2);
+      d[di]=Math.min(255,Math.max(0,col[0]));
+      d[di+1]=Math.min(255,Math.max(0,col[1]));
+      d[di+2]=Math.min(255,Math.max(0,col[2]));
+      d[di+3]=255;
+    }
+  }
+
+  ctx.putImageData(imgData,0,0);
+  ghost=imgData;
+
+  /* mean V for stats */
+  var sumV=0;
+  for(var i=0;i<W*H;i++) sumV+=v[i];
+  return sumV/(W*H);
+}
+
+/* =========================================================
+   ANIMATION LOOP
+   ========================================================= */
+function animate(ts){
+  if(!isPlaying){animId=null;return;}
+  if(lastTs===null) lastTs=ts;
+  var dt=ts-lastTs; lastTs=ts;
+  if(dt>100)dt=100; /* cap dt on tab resume */
+  elapsedMs+=dt;
+
+  /* Check for loop rebirth */
+  var loopT=elapsedMs/LOOP_MS;
+  var rebirthBlend=0;
+
+  if(elapsedMs>=LOOP_MS){
+    if(!inRebirth){
+      inRebirth=true;
+      rebirthTimer=0;
+      ghostRebirth=ghost?new ImageData(new Uint8ClampedArray(ghost.data),W,H):null;
+      initRD(); /* re-init current mode from same seed */
+    }
+    rebirthTimer+=dt;
+    rebirthBlend=Math.min(1,rebirthTimer/REBIRTH_MS);
+    if(rebirthTimer>=REBIRTH_MS){
+      elapsedMs=0; totalGen=0; loopCount++;
+      inRebirth=false; rebirthTimer=0; ghostRebirth=null;
+      ghost=null; /* fully reset ghost */
+    }
+  }
+
+  /* RD steps */
+  for(var s=0;s<stepsPerFrame;s++) rdStep();
+  totalGen+=stepsPerFrame;
+
+  /* Render */
+  var meanV=renderFrame(rebirthBlend);
+
+  /* Update UI */
+  var tSec=(elapsedMs/1000).toFixed(1);
+  var pct=Math.min(100,(elapsedMs/LOOP_MS)*100);
+  document.getElementById('dispTime').textContent=tSec+'s';
+  document.getElementById('dispGen').textContent=totalGen;
+  document.getElementById('dispLoop').textContent=loopCount;
+  document.getElementById('dispV').textContent=meanV.toFixed(3);
+  document.getElementById('dispMode').textContent=simMode;
+  document.getElementById('progFill').style.width=pct+'%';
+
+  animId=requestAnimationFrame(animate);
+}
+
+function togglePlay(){
+  isPlaying=!isPlaying;
+  var btn=document.getElementById('btnPlay');
+  if(isPlaying){
+    btn.textContent='⏸ PAUSE';
+    btn.className='btn btn-am';
+    lastTs=null;
+    animId=requestAnimationFrame(animate);
+  } else {
+    btn.textContent='▶ PLAY';
+    btn.className='btn btn-gr';
+  }
+}
+
+function resetSim(){
+  var wasPlaying=isPlaying;
+  if(isPlaying){isPlaying=false;if(animId){cancelAnimationFrame(animId);animId=null;}}
+  ghost=null; ghostRebirth=null;
+  totalGen=0; loopCount=0; elapsedMs=0; rebirthTimer=0; inRebirth=false;
+  initRD();
+  renderFrame(0);
+  clearKeyCanvas();
+  document.getElementById('dispTime').textContent='0.0s';
+  document.getElementById('dispGen').textContent='0';
+  document.getElementById('dispLoop').textContent='0';
+  document.getElementById('progFill').style.width='0%';
+  document.getElementById('stKey').textContent='no key captured yet';
+  document.getElementById('stKey').className='status';
+  if(wasPlaying){isPlaying=true;lastTs=null;animId=requestAnimationFrame(animate);}
+}
+
+/* =========================================================
+   HOST IMAGE
+   ========================================================= */
+function loadHost(input){
+  var file=input.files[0]; if(!file) return;
+  var url=URL.createObjectURL(file);
+  var img=new Image();
+  img.onload=function(){
+    try{
+      var iw=img.naturalWidth||img.width, ih=img.naturalHeight||img.height;
+      if(!iw||!ih){st('stHost','image has zero dimensions','err');URL.revokeObjectURL(url);return;}
+      var c=document.createElement('canvas');c.width=W;c.height=H;
+      var cx=c.getContext('2d');
+      cx.imageSmoothingEnabled=true;
+      cx.drawImage(img,0,0,W,H);
+      var id=cx.getImageData(0,0,W,H);
+      hostRGBA=new Uint8ClampedArray(id.data);
+      ghost=null;
+      st('stHost','host: '+iw+'x'+ih+' loaded','ok');
+    }catch(e){st('stHost','error: '+e.message,'err');}
+    URL.revokeObjectURL(url);
+  };
+  img.onerror=function(){st('stHost','could not decode — try PNG or JPG','err');URL.revokeObjectURL(url);};
+  img.src=url;
+}
+function clearHost(){hostRGBA=null;ghost=null;st('stHost','no host — running on black');}
+
+/* =========================================================
+   KEY ENCODING
+   Pixel layout (64×64):
+   px0: magic [0xDA,0x7A,0x4D,0xFF]
+   px1: version [0x52,0x44,0x01,0xFF] ('R','D',1)
+   px2: payload length lo/hi + checksum
+   px3..px3+ceil(n/3): JSON bytes packed 3 per pixel (R,G,B)
+   rest: V-field snapshot rendered with bio colormap
+   ========================================================= */
+function captureKey(){
+  capturedKeyParams={
+    F:rdF, k:rdK, Du:rdDu, Dv:rdDv,
+    seed:rdSeed, disp:dispStrength,
+    bleed:Math.round(bleedAmt*100),
+    gen:totalGen, spf:stepsPerFrame,
+    mode:simMode,
+    noiseStr:parseFloat(document.getElementById('noiseStr').value)||0,
+    noiseScale:parseFloat(document.getElementById('noiseScale').value)||3
+  };
+
+  var json=JSON.stringify(capturedKeyParams);
+  var bytes=new TextEncoder().encode(json);
+  var n=bytes.length;
+
+  var cvk=document.getElementById('cvKey');
+  var ctx=cvk.getContext('2d');
+  var d=ctx.createImageData(KW,KH);
+  var px=d.data;
+
+  /* Fill background with V-field bio render (fluorescence look) */
+  for(var y=0;y<KH;y++){
+    for(var x=0;x<KW;x++){
+      var si=Math.floor(y*H/KH)*W+Math.floor(x*W/KW);
+      var vi=v[si], ui=u[si];
+      var pi=(y*KW+x)*4;
+      /* bio fluorescence: low V = dark blue/purple, high V = bright green/white */
+      var life=vi*2; if(life>1)life=1;
+      var glow=Math.pow(vi,0.5);
+      px[pi]  =Math.floor(glow*80+(1-ui)*60);    /* R: amber decay */
+      px[pi+1]=Math.floor(glow*230+life*25);      /* G: green life */
+      px[pi+2]=Math.floor(glow*100+(1-ui)*80);    /* B: blue background */
+      px[pi+3]=255;
+    }
+  }
+
+  /* Overwrite header pixels */
+  px[0]=0xDA;px[1]=0x7A;px[2]=0x4D;px[3]=255;
+  px[4]=0x52;px[5]=0x44;px[6]=0x01;px[7]=255;
+  var ck=0; for(var i=0;i<n;i++) ck=(ck+bytes[i])&0xFF;
+  px[8]=n&0xFF;px[9]=(n>>8)&0xFF;px[10]=ck;px[11]=255;
+
+  for(var i=0;i<n;i+=3){
+    var poff=((Math.floor(i/3)+3)*4);
+    if(poff+3<px.length){
+      px[poff]=bytes[i]||0;
+      px[poff+1]=(i+1<n)?bytes[i+1]:0;
+      px[poff+2]=(i+2<n)?bytes[i+2]:0;
+      px[poff+3]=255;
+    }
+  }
+
+  ctx.putImageData(d,0,0);
+
+  /* Update ASCII key */
+  var af=Math.round(rdF*10000), ak=Math.round(rdK*1000);
+  var adu=Math.round(rdDu*10000), adv=Math.round(rdDv*1000);
+  var ascii='DMRD1|F'+af+'|K'+ak+'|S'+rdSeed+'|D'+dispStrength+'|B'+Math.round(bleedAmt*100)+'|G'+totalGen+'|DU'+adu+'|DV'+adv;
+  document.getElementById('asciiKeyArea').value=ascii;
+
+  st('stKey','key captured at gen '+totalGen+' — '+n+' bytes embedded','ok');
+}
+
+function clearKeyCanvas(){
+  var ctx=document.getElementById('cvKey').getContext('2d');
+  ctx.fillStyle='#050505';ctx.fillRect(0,0,KW,KH);
+  /* draw faint grid suggesting empty state */
+  ctx.fillStyle='#111';
+  for(var y=0;y<KH;y+=8) for(var x=0;x<KW;x+=8)
+    if((x+y)%16===0) ctx.fillRect(x,y,2,2);
+}
+
+function decodeKeyImage(imgData){
+  var d=imgData.data;
+  if(d[0]!==0xDA||d[1]!==0x7A||d[2]!==0x4D||d[4]!==0x52||d[5]!==0x44){
+    throw new Error('invalid key: magic bytes not found');
+  }
+  var n=d[8]|(d[9]<<8), ck=d[10];
+  if(n<=0||n>8000) throw new Error('invalid payload length: '+n);
+  var bytes=new Uint8Array(n);
+  for(var i=0;i<n;i+=3){
+    var poff=((Math.floor(i/3)+3)*4);
+    bytes[i]=d[poff];
+    if(i+1<n) bytes[i+1]=d[poff+1];
+    if(i+2<n) bytes[i+2]=d[poff+2];
+  }
+  var ck2=0; for(var i=0;i<n;i++) ck2=(ck2+bytes[i])&0xFF;
+  if(ck2!==ck) throw new Error('checksum mismatch — key must be saved as PNG, not JPEG');
+  return JSON.parse(new TextDecoder().decode(bytes));
+}
+
+function parseAsciiKey(str){
+  str=str.trim();
+  if(!str.startsWith('DMRD1|')) throw new Error('not a DMRD1 key string');
+  var p={}, parts=str.slice(6).split('|');
+  parts.forEach(function(part){
+    var m=part.match(/^([A-Z]+)(\d+)$/);
+    if(m) p[m[1]]=parseInt(m[2]);
+  });
+  if(!('F' in p&&'K' in p&&'S' in p&&'G' in p)) throw new Error('missing required fields F, K, S, G');
+  return{
+    F:p.F/10000, k:p.K/1000, Du:(p.DU||2097)/10000, Dv:(p.DV||105)/1000,
+    seed:p.S, disp:p.D||4, bleed:(p.B||88)/100, gen:p.G, spf:p.SPF||6
+  };
+}
+
+/* =========================================================
+   CURE — reconstruct RD field and reverse displacement
+   ========================================================= */
+function applyParamsFromKey(params){
+  rdF=params.F; rdK=params.k;
+  rdDu=params.Du; rdDv=params.Dv;
+  rdSeed=params.seed;
+  dispStrength=params.disp;
+  bleedAmt=params.bleed;
+  loadedKeyParams=params;
+  /* Update UI sliders */
+  document.getElementById('rdF').value=Math.round(params.F*10000);
+  document.getElementById('vF').textContent=params.F.toFixed(4);
+  document.getElementById('rdK').value=Math.round(params.k*1000);
+  document.getElementById('vK').textContent=params.k.toFixed(4);
+  document.getElementById('rdDu').value=Math.round(params.Du*10000);
+  document.getElementById('vDu').textContent=params.Du.toFixed(3);
+  document.getElementById('rdDv').value=Math.round(params.Dv*1000);
+  document.getElementById('vDv').textContent=params.Dv.toFixed(3);
+  document.getElementById('rdSeed').value=params.seed;
+  document.getElementById('dispStr').value=params.disp;
+  document.getElementById('vDisp').textContent=params.disp;
+  document.getElementById('bleedStr').value=Math.round(params.bleed*100);
+  document.getElementById('vBleed').textContent=params.bleed.toFixed(2);
+}
+
+function performCure(params){
+  if(!hostRGBA){st('stCure','load the infected image as the host first','err');return;}
+
+  /* Reconstruct RD state at key generation */
+  u.fill(1.0); v.fill(0.0);
+  var r=rng(params.seed);
+  var nSpots=10+Math.floor(r()*10);
+  for(var i=0;i<nSpots;i++){
+    var cx=Math.floor(r()*W),cy=Math.floor(r()*H),rad=1+Math.floor(r()*4);
+    for(var dy=-rad;dy<=rad;dy++) for(var dx=-rad;dx<=rad;dx++)
+      if(dx*dx+dy*dy<=rad*rad){
+        var nx=((cx+dx)%W+W)%W,ny=((cy+dy)%H+H)%H;
+        u[ny*W+nx]=0.5+r()*0.1-0.05; v[ny*W+nx]=0.25+r()*0.1-0.05;
+      }
+  }
+  var genTarget=params.gen;
+  var spf=params.spf||6;
+  for(var g=0;g<genTarget;g++) rdStep();
+
+  /* Reconstruct accumulated displacement map by running RD forward
+     and integrating the flow field — apply INVERSE displacement to host */
+  var curedRGBA=new Uint8ClampedArray(hostRGBA);
+
+  /* Rebuild approximate ghost stack: run bleed simulation forward
+     using host as substrate and the reconstructed RD field,
+     then solve backwards via inverse displacement */
+  var totalFrames2=Math.ceil(genTarget/spf);
+  var bleedEst=params.bleed;
+
+  /* For each pixel in the cured output, trace back through the bleed chain.
+     Simplified single-step inverse: given known displacement d from RD gradient,
+     sample the infected image at (x+dx, y+dy) instead of (x-dx, y-dy) */
+  var infectedRGBA=new Uint8ClampedArray(hostRGBA); /* current host = infected image */
+  var F2=rdF, k2=rdK, Du2=rdDu, Dv2=rdDv;
+
+  /* Use reconstructed v-field gradients as inverse displacement */
+  for(var y2=0;y2<H;y2++){
+    for(var x2=0;x2<W;x2++){
+      var idx2=(y2*W+x2)*4;
+      var vi2=v[y2*W+x2];
+      var vr2=v[y2*W+((x2+1)%W)]-v[y2*W+((x2-1+W)%W)];
+      var vd2=v[((y2+1)%H)*W+x2]-v[((y2-1+H)%H)*W+x2];
+      /* Inverse: sample at +displacement to undo the -displacement that was applied */
+      var dx2=Math.round(vr2*params.disp*8);
+      var dy2=Math.round(vd2*params.disp*8);
+      var sx2=((x2+dx2)%W+W)%W;
+      var sy2=((y2+dy2)%H+H)%H;
+      var si2=(sy2*W+sx2)*4;
+      /* Weight inverse by infection level — settled zones recover cleanly */
+      var inf2=Math.min(1,vi2*2.5);
+      var alpha=(1-Math.pow(bleedEst,totalFrames2))*inf2;
+      alpha=Math.min(0.95,alpha);
+      curedRGBA[idx2]  =Math.round(infectedRGBA[si2]  *alpha+infectedRGBA[idx2]  *(1-alpha));
+      curedRGBA[idx2+1]=Math.round(infectedRGBA[si2+1]*alpha+infectedRGBA[idx2+1]*(1-alpha));
+      curedRGBA[idx2+2]=Math.round(infectedRGBA[si2+2]*alpha+infectedRGBA[idx2+2]*(1-alpha));
+      curedRGBA[idx2+3]=255;
+    }
+  }
+
+  /* Display cured result in main canvas */
+  var cvs=document.getElementById('cvMain');
+  var ctx=cvs.getContext('2d');
+  var imgData=ctx.createImageData(W,H);
+  imgData.data.set(curedRGBA);
+  ctx.putImageData(imgData,0,0);
+  ghost=imgData;
+  /* Also update hostRGBA so next play continues from cured state */
+  hostRGBA=curedRGBA;
+
+  st('stCure','cure applied — RD reconstructed at gen '+genTarget+', inverse displacement applied','ok');
+}
+
+/* =========================================================
+   UI HANDLERS
+   ========================================================= */
+function loadKeyImg(input){
+  var file=input.files[0]; if(!file) return;
+  var img=new Image();
+  img.onload=function(){
+    var c=document.createElement('canvas');c.width=KW;c.height=KH;
+    var cx=c.getContext('2d');cx.drawImage(img,0,0,KW,KH);
+    var id=cx.getImageData(0,0,KW,KH);
+    /* display it */
+    document.getElementById('cvKey').getContext('2d').putImageData(id,0,0);
+    try{
+      var params=decodeKeyImage(id);
+      applyParamsFromKey(params);
+      var ascii='DMRD1|F'+Math.round(params.F*10000)+'|K'+Math.round(params.k*1000)
+        +'|S'+params.seed+'|D'+params.disp+'|B'+Math.round(params.bleed*100)
+        +'|G'+params.gen+'|DU'+Math.round(params.Du*10000)+'|DV'+Math.round(params.Dv*1000);
+      document.getElementById('asciiKeyArea').value=ascii;
+      st('stCure','key decoded: gen='+params.gen+' F='+params.F.toFixed(4)+' k='+params.k.toFixed(4)+' — ready to cure','ok');
+    }catch(e){st('stCure','key decode error: '+e.message,'err');}
+    URL.revokeObjectURL(img.src);
+  };
+  img.onerror=function(){st('stCure','could not load key image','err');};
+  img.src=URL.createObjectURL(file);
+}
+
+function applyCure(){
+  if(!loadedKeyParams){st('stCure','load a key image first','err');return;}
+  performCure(loadedKeyParams);
+}
+
+function cureFromAscii(){
+  var raw=document.getElementById('asciiKeyArea').value;
+  try{
+    var params=parseAsciiKey(raw);
+    applyParamsFromKey(params);
+    performCure(params);
+  }catch(e){st('stCure','parse error: '+e.message,'err');}
+}
+
+function saveKeyTxt(){
+  var v2=document.getElementById('asciiKeyArea').value;
+  if(!v2||!v2.startsWith('DMRD1|')){st('stKey','capture a key first','err');return;}
+  var a=document.createElement('a');a.download='datamosh_key.txt';
+  a.href='data:text/plain;charset=utf-8,'+encodeURIComponent(v2);a.click();
+}
+
+function copyAscii(){
+  var v2=document.getElementById('asciiKeyArea').value;
+  if(!v2){st('stCure','nothing to copy','err');return;}
+  navigator.clipboard.writeText(v2).then(function(){st('stCure','copied','ok');})
+  .catch(function(){document.getElementById('asciiKeyArea').select();document.execCommand('copy');st('stCure','copied','ok');});
+}
+
+function dlCanvas(id,name){
+  var a=document.createElement('a');a.download=name;
+  a.href=document.getElementById(id).toDataURL('image/png');a.click();
+}
+
+function syncRdF(v2){rdF=v2/10000;document.getElementById('vF').textContent=rdF.toFixed(4);}
+function syncRdK(v2){rdK=v2/1000;document.getElementById('vK').textContent=rdK.toFixed(4);}
+function syncRdDu(v2){rdDu=v2/10000;document.getElementById('vDu').textContent=rdDu.toFixed(3);}
+function syncRdDv(v2){rdDv=v2/1000;document.getElementById('vDv').textContent=rdDv.toFixed(3);}
+function syncBleed(v2){bleedAmt=v2/100;document.getElementById('vBleed').textContent=bleedAmt.toFixed(2);}
+
+function onModeChange(){
+  var val=document.getElementById('simMode').value;
+  if(val==='gs'||val.startsWith('gs_')) simMode='gs';
+  else simMode=val;
+  var isGS=(simMode==='gs');
+  document.getElementById('gsParams').style.opacity=isGS?'1':'0.4';
+  document.getElementById('gsParams2').style.opacity=isGS?'1':'0.4';
+  if(val.startsWith('gs_')){
+    var pname=val.slice(3);
+    var p=PRESETS_RD[pname]; if(!p) return;
+    rdF=p.F; rdK=p.k;
+    if(p.Du) rdDu=p.Du; if(p.Dv) rdDv=p.Dv;
+    document.getElementById('rdF').value=Math.round(rdF*10000);
+    document.getElementById('vF').textContent=rdF.toFixed(4);
+    document.getElementById('rdK').value=Math.round(rdK*1000);
+    document.getElementById('vK').textContent=rdK.toFixed(4);
+    document.getElementById('rdDu').value=Math.round(rdDu*10000);
+    document.getElementById('vDu').textContent=rdDu.toFixed(3);
+    document.getElementById('rdDv').value=Math.round(rdDv*1000);
+    document.getElementById('vDv').textContent=rdDv.toFixed(3);
+  }
+}
+
+function applyPreset(){onModeChange();}
+
+function st(id,msg,cls){
+  var el=document.getElementById(id);el.textContent=msg;
+  el.className='status '+(cls||'');
+}
+
+function toggleHelp(){
+  var p=document.getElementById('helpPanel');
+  var b=document.getElementById('helpBtn');
+  var open=p.style.display==='none'||p.style.display==='';
+  p.style.display=open?'block':'none';
+  b.textContent=open?'x CLOSE':'? HELP';
+  b.className=open?'btn btn-rd':'btn';
+}
+
+/* =========================================================
+   INIT
+   ========================================================= */
+(function(){
+  initRD();
+  /* draw one warm frame so canvas isn't empty */
+  var cvs=document.getElementById('cvMain');
+  var ctx=cvs.getContext('2d');
+  ctx.fillStyle='#050505';ctx.fillRect(0,0,W,H);
+  clearKeyCanvas();
+})();
+</script>
+</body>
+</html>
