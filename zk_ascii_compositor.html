@@ -1,0 +1,479 @@
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+.pg{background:#000;font-family:'Courier New',monospace;padding:10px;color:#333;max-width:580px;}
+.hdr{display:flex;justify-content:space-between;align-items:baseline;margin:0 0 7px;}
+.ttl{font-size:6px;letter-spacing:4px;color:#1c1c1c;text-transform:uppercase;}
+.sub{font-size:5px;letter-spacing:1px;color:#111;}
+/* preview strip */
+.prev-strip{display:flex;gap:3px;justify-content:center;margin:0 0 7px;align-items:flex-start;}
+.pv-item{display:flex;flex-direction:column;align-items:center;gap:2px;}
+.pv-cv{image-rendering:pixelated;image-rendering:crisp-edges;display:block;border:0.5px solid #0d0d0d;}
+.pv-cv.face-layer{border-color:#222;}
+.pv-lbl{font-size:4px;letter-spacing:1px;color:#222;text-align:center;}
+.pv-tog{background:none;border:0.5px solid #111;color:#222;padding:1px 3px;font:4px 'Courier New';cursor:pointer;}
+.pv-tog.on{border-color:#444;color:#888;}
+/* composite */
+.comp-wrap{display:flex;justify-content:center;margin:0 0 7px;}
+#main-cv{image-rendering:pixelated;image-rendering:crisp-edges;border:0.5px solid #0d0d0d;display:block;}
+/* section box */
+.sbox{border:0.5px solid #0d0d0d;padding:6px 7px;margin:0 0 6px;}
+.shdr{font-size:5px;color:#1e1e1e;letter-spacing:2px;margin:0 0 5px;}
+/* face selector */
+.face-row{display:flex;align-items:center;gap:4px;margin:0 0 4px;}
+.fc{width:30px;height:30px;image-rendering:pixelated;cursor:pointer;border:0.5px solid #0e0e0e;opacity:.3;transition:opacity .1s;display:block;}
+.fc.on{opacity:1;border-color:#555;}
+.fc:hover{opacity:.7;}
+#mask-pv{image-rendering:pixelated;display:block;border:0.5px solid #111;}
+/* buttons */
+.btn{background:none;border:0.5px solid #0d0d0d;color:#1a1a1a;padding:1px 5px;font:5px 'Courier New';letter-spacing:1px;cursor:pointer;transition:all .08s;}
+.btn:hover{border-color:#333;color:#444;}.btn.on{background:#080808;border-color:#444;color:#bbb;}
+.brow{display:flex;align-items:center;gap:2px;flex-wrap:wrap;margin:0 0 3px;}
+.blbl{font-size:5px;color:#161616;letter-spacing:1px;margin-right:3px;white-space:nowrap;}
+/* sliders */
+.sl-row{display:flex;align-items:center;gap:4px;margin:0 0 3px;}
+.sl-row label{font-size:5px;color:#1c1c1c;width:52px;flex-shrink:0;letter-spacing:1px;}
+.sl-row input[type=range]{flex:1;height:2px;appearance:none;background:#111;cursor:pointer;outline:none;}
+.sl-row input[type=range]::-webkit-slider-thumb{appearance:none;width:7px;height:7px;background:#2c2c2c;border-radius:0;}
+.sl-row b{font-size:5px;color:#444;width:24px;text-align:right;flex-shrink:0;}
+/* panels */
+.lpanels{display:grid;grid-template-columns:1fr 1fr;gap:5px;}
+.lpanel{border:0.5px solid #0d0d0d;padding:6px;}
+.lpanel.wide{grid-column:1/-1;}
+.lp-hdr{font-size:5px;color:#2a2a2a;letter-spacing:2px;border-bottom:0.5px solid #090909;padding-bottom:2px;margin-bottom:4px;display:flex;justify-content:space-between;}
+.lp-hdr span{font-size:4px;color:#141414;}
+.crow{display:flex;align-items:center;gap:2px;flex-wrap:wrap;margin:0 0 3px;}
+.crow .cl{font-size:4px;color:#181818;letter-spacing:1px;width:36px;flex-shrink:0;}
+/* two-col inner */
+.l5inner{display:grid;grid-template-columns:1fr 1fr;gap:0 10px;}
+</style>
+
+<div class="pg">
+<h2 class="sr-only">ZK ASCII Compositor — 5 layers, face mask, darken/multiply/invert blend modes</h2>
+<div class="hdr">
+  <span class="ttl">ZK ASCII COMPOSITOR · 5-LAYER NOISE + FACE DRIVER</span>
+  <span class="sub">binary · no antialiasing · pixel-shift accumulative</span>
+</div>
+
+<!-- LAYER PREVIEWS 5× -->
+<div class="prev-strip">
+  <div class="pv-item"><canvas id="pv0" class="pv-cv" width="96" height="96" style="width:96px;height:96px;"></canvas><div class="pv-lbl">L1 DENSITY TEAR</div><button class="pv-tog on" data-t="0">L1</button></div>
+  <div class="pv-item"><canvas id="pv1" class="pv-cv" width="96" height="96" style="width:96px;height:96px;"></canvas><div class="pv-lbl">L2 SCANLINE STRIPE</div><button class="pv-tog on" data-t="1">L2</button></div>
+  <div class="pv-item"><canvas id="pv2" class="pv-cv" width="96" height="96" style="width:96px;height:96px;"></canvas><div class="pv-lbl">L3 DIAGONAL INVERT</div><button class="pv-tog on" data-t="2">L3</button></div>
+  <div class="pv-item"><canvas id="pv3" class="pv-cv" width="96" height="96" style="width:96px;height:96px;"></canvas><div class="pv-lbl">L4 BAYER SHIFT</div><button class="pv-tog on" data-t="3">L4</button></div>
+  <div class="pv-item"><canvas id="pv4" class="pv-cv face-layer" width="96" height="96" style="width:96px;height:96px;"></canvas><div class="pv-lbl" style="color:#2a2a2a;">L5 ◈ FACE DRIVER</div><button class="pv-tog on" data-t="4">L5</button></div>
+</div>
+
+<!-- COMPOSITE -->
+<div class="comp-wrap"><canvas id="main-cv" width="256" height="256" style="width:256px;height:256px;"></canvas></div>
+
+<!-- FACE MASK + DRIVER -->
+<div class="sbox">
+  <div class="shdr">◈ FACE MASK + L5 DRIVER — xenomoderns ZK face as mask and layer-5 noise source</div>
+  <div style="display:flex;gap:8px;align-items:flex-start;">
+    <div style="flex:1;">
+      <div class="face-row">
+        <span class="blbl">FACE</span>
+        <canvas class="fc" id="fc0" width="16" height="16" data-face="0" title="ZK-001"></canvas>
+        <canvas class="fc" id="fc1" width="16" height="16" data-face="1" title="ZK-002"></canvas>
+        <canvas class="fc" id="fc2" width="16" height="16" data-face="2" title="ZK-003"></canvas>
+        <canvas class="fc" id="fc3" width="16" height="16" data-face="3" title="ZK-004"></canvas>
+        <button class="btn on" id="face-none">NONE</button>
+        <span id="face-status" style="font-size:4px;color:#333;margin-left:4px;letter-spacing:1px;">NO FACE</span>
+      </div>
+      <div class="brow"><span class="blbl">MASK MODE</span>
+        <button class="btn on" data-mask="mul">MULTIPLY</button>
+        <button class="btn" data-mask="stencil">STENCIL</button>
+        <button class="btn" data-mask="add">ADD</button>
+        <button class="btn" data-mask="diff">DIFFERENCE</button>
+        <button class="btn" data-mask="sub">SUBTRACT</button>
+        <button class="btn" id="mask-inv-btn">INVERT ☐</button>
+      </div>
+      <div class="sl-row"><label>THRESHOLD</label><input type="range" id="m-thr" min="0" max="255" value="50"><b id="v-thr">50</b></div>
+      <div class="sl-row"><label>STRENGTH</label><input type="range" id="m-str" min="0" max="100" value="100"><b id="v-str">100</b></div>
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:center;gap:2px;">
+      <canvas id="mask-pv" width="64" height="64" style="width:64px;height:64px;"></canvas>
+      <span style="font-size:4px;color:#1a1a1a;letter-spacing:1px;">MASK PREVIEW</span>
+    </div>
+  </div>
+</div>
+
+<!-- BLEND + PALETTE + SPEED -->
+<div class="sbox">
+  <div class="shdr">◈ COMPOSITOR — blend modes: how 5 layers combine over difference/darken/multiply/invert</div>
+  <div class="brow"><span class="blbl">BLEND</span>
+    <button class="btn on" data-blend="add">ADD</button>
+    <button class="btn" data-blend="darken">DARKEN</button>
+    <button class="btn" data-blend="multiply">MULTIPLY</button>
+    <button class="btn" data-blend="max">MAX</button>
+    <button class="btn" data-blend="xor">XOR</button>
+    <button class="btn" data-blend="screen">SCREEN</button>
+    <button class="btn" data-blend="diff">DIFF</button>
+    <button class="btn" data-blend="invert">INVERT</button>
+  </div>
+  <div class="brow"><span class="blbl">PALETTE</span>
+    <button class="btn on" data-pal="0">MONO</button>
+    <button class="btn" data-pal="1">XENO</button>
+    <button class="btn" data-pal="2">4-PRI</button>
+    <button class="btn" data-pal="3">ACID</button>
+    <button class="btn" data-pal="4">DEEP</button>
+    <button class="btn" data-pal="5">FIRE</button>
+  </div>
+  <div class="sl-row"><label>SIM SPEED</label><input type="range" id="m-spd" min="1" max="20" value="5"><b id="v-spd">1.0×</b></div>
+</div>
+
+<!-- LAYER PANELS -->
+<div class="lpanels">
+<!-- L1 -->
+<div class="lpanel">
+  <div class="lp-hdr">◈ LAYER 1 <span id="lh0">32px DENSITY TEAR</span></div>
+  <div class="crow"><span class="cl">BLOCK</span><button class="btn" data-l="0" data-bs="4">4</button><button class="btn" data-l="0" data-bs="8">8</button><button class="btn" data-l="0" data-bs="16">16</button><button class="btn on" data-l="0" data-bs="32">32</button><button class="btn" data-l="0" data-bs="64">64</button></div>
+  <div class="crow"><span class="cl">PATTERN</span><button class="btn on" data-l="0" data-ps="density">DENSE</button><button class="btn" data-l="0" data-ps="scanline">SCAN</button><button class="btn" data-l="0" data-ps="diagonal">DIAG</button><button class="btn" data-l="0" data-ps="glitch">GLYPH</button><button class="btn" data-l="0" data-ps="bayer">BAYER</button></div>
+  <div class="crow"><span class="cl">GLITCH</span><button class="btn" data-l="0" data-gs="none">OFF</button><button class="btn on" data-l="0" data-gs="tear">TEAR</button><button class="btn" data-l="0" data-gs="stripe">STRIPE</button><button class="btn" data-l="0" data-gs="invert">INVERT</button><button class="btn" data-l="0" data-gs="shift">SHIFT</button></div>
+  <div class="sl-row"><label>GRIT</label><input type="range" data-l="0" data-p="ga" min="0" max="100" value="40"><b>40</b></div>
+  <div class="sl-row"><label>NOISE FREQ</label><input type="range" data-l="0" data-p="nf" min="1" max="20" value="4"><b>0.04</b></div>
+  <div class="sl-row"><label>NOISE SPD</label><input type="range" data-l="0" data-p="ns" min="1" max="40" value="8"><b>0.40</b></div>
+  <div class="sl-row"><label>DISPLACE</label><input type="range" data-l="0" data-p="dp" min="0" max="20" value="8"><b>8px</b></div>
+</div>
+<!-- L2 -->
+<div class="lpanel">
+  <div class="lp-hdr">◈ LAYER 2 <span id="lh1">16px SCANLINE STRIPE</span></div>
+  <div class="crow"><span class="cl">BLOCK</span><button class="btn" data-l="1" data-bs="4">4</button><button class="btn" data-l="1" data-bs="8">8</button><button class="btn on" data-l="1" data-bs="16">16</button><button class="btn" data-l="1" data-bs="32">32</button><button class="btn" data-l="1" data-bs="64">64</button></div>
+  <div class="crow"><span class="cl">PATTERN</span><button class="btn" data-l="1" data-ps="density">DENSE</button><button class="btn on" data-l="1" data-ps="scanline">SCAN</button><button class="btn" data-l="1" data-ps="diagonal">DIAG</button><button class="btn" data-l="1" data-ps="glitch">GLYPH</button><button class="btn" data-l="1" data-ps="bayer">BAYER</button></div>
+  <div class="crow"><span class="cl">GLITCH</span><button class="btn" data-l="1" data-gs="none">OFF</button><button class="btn" data-l="1" data-gs="tear">TEAR</button><button class="btn on" data-l="1" data-gs="stripe">STRIPE</button><button class="btn" data-l="1" data-gs="invert">INVERT</button><button class="btn" data-l="1" data-gs="shift">SHIFT</button></div>
+  <div class="sl-row"><label>GRIT</label><input type="range" data-l="1" data-p="ga" min="0" max="100" value="40"><b>40</b></div>
+  <div class="sl-row"><label>NOISE FREQ</label><input type="range" data-l="1" data-p="nf" min="1" max="20" value="7"><b>0.07</b></div>
+  <div class="sl-row"><label>NOISE SPD</label><input type="range" data-l="1" data-p="ns" min="1" max="40" value="15"><b>0.75</b></div>
+  <div class="sl-row"><label>DISPLACE</label><input type="range" data-l="1" data-p="dp" min="0" max="20" value="5"><b>5px</b></div>
+</div>
+<!-- L3 -->
+<div class="lpanel">
+  <div class="lp-hdr">◈ LAYER 3 <span id="lh2">8px DIAGONAL INVERT</span></div>
+  <div class="crow"><span class="cl">BLOCK</span><button class="btn" data-l="2" data-bs="4">4</button><button class="btn on" data-l="2" data-bs="8">8</button><button class="btn" data-l="2" data-bs="16">16</button><button class="btn" data-l="2" data-bs="32">32</button><button class="btn" data-l="2" data-bs="64">64</button></div>
+  <div class="crow"><span class="cl">PATTERN</span><button class="btn" data-l="2" data-ps="density">DENSE</button><button class="btn" data-l="2" data-ps="scanline">SCAN</button><button class="btn on" data-l="2" data-ps="diagonal">DIAG</button><button class="btn" data-l="2" data-ps="glitch">GLYPH</button><button class="btn" data-l="2" data-ps="bayer">BAYER</button></div>
+  <div class="crow"><span class="cl">GLITCH</span><button class="btn" data-l="2" data-gs="none">OFF</button><button class="btn" data-l="2" data-gs="tear">TEAR</button><button class="btn" data-l="2" data-gs="stripe">STRIPE</button><button class="btn on" data-l="2" data-gs="invert">INVERT</button><button class="btn" data-l="2" data-gs="shift">SHIFT</button></div>
+  <div class="sl-row"><label>GRIT</label><input type="range" data-l="2" data-p="ga" min="0" max="100" value="40"><b>40</b></div>
+  <div class="sl-row"><label>NOISE FREQ</label><input type="range" data-l="2" data-p="nf" min="1" max="20" value="12"><b>0.12</b></div>
+  <div class="sl-row"><label>NOISE SPD</label><input type="range" data-l="2" data-p="ns" min="1" max="40" value="25"><b>1.25</b></div>
+  <div class="sl-row"><label>DISPLACE</label><input type="range" data-l="2" data-p="dp" min="0" max="20" value="3"><b>3px</b></div>
+</div>
+<!-- L4 -->
+<div class="lpanel">
+  <div class="lp-hdr">◈ LAYER 4 <span id="lh3">4px BAYER SHIFT</span></div>
+  <div class="crow"><span class="cl">BLOCK</span><button class="btn on" data-l="3" data-bs="4">4</button><button class="btn" data-l="3" data-bs="8">8</button><button class="btn" data-l="3" data-bs="16">16</button><button class="btn" data-l="3" data-bs="32">32</button><button class="btn" data-l="3" data-bs="64">64</button></div>
+  <div class="crow"><span class="cl">PATTERN</span><button class="btn" data-l="3" data-ps="density">DENSE</button><button class="btn" data-l="3" data-ps="scanline">SCAN</button><button class="btn" data-l="3" data-ps="diagonal">DIAG</button><button class="btn" data-l="3" data-ps="glitch">GLYPH</button><button class="btn on" data-l="3" data-ps="bayer">BAYER</button></div>
+  <div class="crow"><span class="cl">GLITCH</span><button class="btn" data-l="3" data-gs="none">OFF</button><button class="btn" data-l="3" data-gs="tear">TEAR</button><button class="btn" data-l="3" data-gs="stripe">STRIPE</button><button class="btn" data-l="3" data-gs="invert">INVERT</button><button class="btn on" data-l="3" data-gs="shift">SHIFT</button></div>
+  <div class="sl-row"><label>GRIT</label><input type="range" data-l="3" data-p="ga" min="0" max="100" value="40"><b>40</b></div>
+  <div class="sl-row"><label>NOISE FREQ</label><input type="range" data-l="3" data-p="nf" min="1" max="20" value="18"><b>0.18</b></div>
+  <div class="sl-row"><label>NOISE SPD</label><input type="range" data-l="3" data-p="ns" min="1" max="40" value="32"><b>1.60</b></div>
+  <div class="sl-row"><label>DISPLACE</label><input type="range" data-l="3" data-p="dp" min="0" max="20" value="2"><b>2px</b></div>
+</div>
+<!-- L5 FACE DRIVER — full width -->
+<div class="lpanel wide">
+  <div class="lp-hdr">◈ LAYER 5 · FACE DRIVER <span>ZK face brightness → pattern selection / no Perlin noise when face loaded</span></div>
+  <div class="l5inner">
+    <div>
+      <div class="crow"><span class="cl">BLOCK</span><button class="btn" data-l="4" data-bs="4">4</button><button class="btn" data-l="4" data-bs="8">8</button><button class="btn on" data-l="4" data-bs="16">16</button><button class="btn" data-l="4" data-bs="32">32</button><button class="btn" data-l="4" data-bs="64">64</button></div>
+      <div class="crow"><span class="cl">PATTERN</span><button class="btn on" data-l="4" data-ps="density">DENSE</button><button class="btn" data-l="4" data-ps="scanline">SCAN</button><button class="btn" data-l="4" data-ps="diagonal">DIAG</button><button class="btn" data-l="4" data-ps="glitch">GLYPH</button><button class="btn" data-l="4" data-ps="bayer">BAYER</button></div>
+      <div class="crow"><span class="cl">GLITCH</span><button class="btn on" data-l="4" data-gs="none">OFF</button><button class="btn" data-l="4" data-gs="tear">TEAR</button><button class="btn" data-l="4" data-gs="stripe">STRIPE</button><button class="btn" data-l="4" data-gs="invert">INVERT</button><button class="btn" data-l="4" data-gs="shift">SHIFT</button></div>
+    </div>
+    <div>
+      <div class="sl-row"><label>GRIT</label><input type="range" data-l="4" data-p="ga" min="0" max="100" value="30"><b>30</b></div>
+      <div class="sl-row"><label>NOISE FREQ*</label><input type="range" data-l="4" data-p="nf" min="1" max="20" value="8"><b>0.08</b></div>
+      <div class="sl-row"><label>NOISE SPD*</label><input type="range" data-l="4" data-p="ns" min="1" max="40" value="12"><b>0.60</b></div>
+      <div class="sl-row"><label>DISPLACE</label><input type="range" data-l="4" data-p="dp" min="0" max="20" value="4"><b>4px</b></div>
+      <div style="font-size:4px;color:#181818;margin-top:3px;letter-spacing:1px;">* used only when no face loaded</div>
+    </div>
+  </div>
+</div>
+</div><!-- /lpanels -->
+</div><!-- /pg -->
+
+<script>
+// ── CONSTANTS ─────────────────────────────────────────────────────────────────
+const CW=256,CH=256;
+let blendMode='add',G_PAL=0,G_SPEED=1;
+let faceEntity=null,faceMaskBuf=null,useMask=false;
+let maskMode='mul',maskThreshold=50,maskStrength=100,maskInvert=false;
+
+// ── PALETTES ─────────────────────────────────────────────────────────────────
+const PAL=[
+  {bg:[0,0,0],al:[255,255,255]},
+  {bg:[0,0,0],al:[0,240,140]},
+  {bg:[0,0,0],al:[255,230,0]},
+  {bg:[0,0,0],al:[185,255,0]},
+  {bg:[0,0,8],al:[25,105,255]},
+  {bg:[0,0,0],al:[255,125,0]},
+];
+
+// ── PERLIN NOISE ──────────────────────────────────────────────────────────────
+const PERM=(()=>{const p=Array.from({length:256},(_,i)=>i);let s=0xABCDEF12;const r=()=>{s^=s<<13;s^=s>>>17;s^=s<<5;return(s>>>0)/4294967296;};for(let i=255;i>0;i--){const j=(r()*(i+1))|0;[p[i],p[j]]=[p[j],p[i]];}return new Uint8Array([...p,...p]);})();
+const G2=[[1,1],[-1,1],[1,-1],[-1,-1],[1,0],[-1,0],[0,1],[0,-1]];
+function perlin2(x,y){const xi=Math.floor(x)&255,yi=Math.floor(y)&255,xf=x-Math.floor(x),yf=y-Math.floor(y);const fd=t=>t*t*t*(t*(t*6-15)+10),u=fd(xf),v=fd(yf);const dot=(gi,dx,dy)=>{const g=G2[gi%8];return g[0]*dx+g[1]*dy;};const lp=(a,b,t)=>a+(b-a)*t;return lp(lp(dot(PERM[xi+PERM[yi]],xf,yf),dot(PERM[xi+1+PERM[yi]],xf-1,yf),u),lp(dot(PERM[xi+PERM[yi+1]],xf,yf-1),dot(PERM[xi+1+PERM[yi+1]],xf-1,yf-1),u),v);}
+function pn(x,y,s=0){return perlin2(x+s,y+s)*0.5+perlin2((x+s)*2.2,(y+s)*2.2)*0.25+0.375;}
+
+// ── PATTERN DATA ──────────────────────────────────────────────────────────────
+const DENSITY=[[0,0,0,0,0,0,0,0],[0,0,0,24,24,0,0,0],[0,24,24,0,0,24,24,0],[0,0,60,60,0,0,60,60],[36,36,255,36,36,255,36,36],[0,126,255,126,0,126,255,126],[60,126,255,255,255,255,126,60],[255,255,255,255,255,255,255,255]];
+const SCANLINE=[[0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,255],[0,0,0,255,0,0,0,255],[0,0,255,0,0,255,0,255],[0,255,0,255,0,255,0,255],[255,255,0,0,255,255,0,255],[255,255,255,0,255,255,255,0],[255,255,255,255,255,255,255,255]];
+const DIAGONAL=[[0,0,0,0,0,0,0,0],[128,64,32,16,8,4,2,1],[1,2,4,8,16,32,64,128],[129,66,36,24,24,36,66,129],[195,102,60,24,24,60,102,195],[231,189,126,60,60,126,189,231],[255,127,62,28,28,62,127,255],[255,255,255,255,255,255,255,255]];
+const GLITCH=[[0,0,0,0,0,0,0,0],[255,0,0,0,0,0,0,0],[255,0,0,0,255,0,0,0],[255,0,255,0,0,255,0,0],[170,85,170,85,170,85,170,85],[255,0,255,255,0,0,255,0],[255,255,0,255,0,255,255,255],[255,255,255,255,255,255,255,255]];
+const BAYER8=new Uint8Array([0,32,8,40,2,34,10,42,48,16,56,24,50,18,58,26,12,44,4,36,14,46,6,38,60,28,52,20,62,30,54,22,3,35,11,43,1,33,9,41,51,19,59,27,49,17,57,25,15,47,7,39,13,45,5,37,63,31,55,23,61,29,53,21]);
+const PSETS={density:DENSITY,scanline:SCANLINE,diagonal:DIAGONAL,glitch:GLITCH};
+
+// ── ZK FACE DATA ──────────────────────────────────────────────────────────────
+const ZK_B64=['iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAIAAADYYG7QAAABTUlEQVRYCc3BCYrDQBAEwcz/P7oWgVjLpueyRuAImRM2kDGZE/aQAZkT9pABmRC2kQGZELaRAZkQtpEBmRO2kR6ZE7aRHpkTtpEemRO2kR6ZE7aRHpkQkE/he9Ik08JJXsI3pEnmhIIQalILB2mSCWEPOQSkSW4Iy+QQkJqMhIO8CQPyKZyEgNSkK9wib8KL1KQrPEVq0hWeIjXpCg+SgnSFB0lBRsJTpCAj4SlSkJGwmRBO8kkmhCY5hJMQBoRwkILMCQWphSYhHKQmc8IeQjhITZoCchFukVNAmqQpIBfhFvkXkAZpCshFuEsISI+sCBtIj7QF5E04yUCoyYCsCCchFOQlFGRAVoRbZEwGAnIRTnIIC2RMBgJyEV6kEGoyRcYCchGWySxZF5bJLPlKWCAL5FthTJbJDaFJviQ7hJPcJT9Gfoz8GPkx8mP+AAUzSzEw/N3fAAAAAElFTkSuQmCC','iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAIAAADYYG7QAAABO0lEQVRYCc3BAY6CQBQFwe77H/pthmAU+IMrwmCV/Bj5MfJj5AvhSc4h/xM+JkdIRzifvCeVcBV5QyrhKvKGVMKFZI9shGvJHtkI15I9shEuJ12yES4nXbIRLiddshQGkZoshTUhnE9qshQWZC2cQ2ryIqxJIZxAavIiFKQWviUFeRGeZE84gRTkRUA+EL4iBflOOE4KUgoYkH8IR0hNVkJjaISAdASkCR+TmjyExoBhJrvCcVKTh9AYGkMjldBIE46QLpmEJ0NjiMhKmMksfEy6ZBIWDDNZCTNpwhHSJZOwZliJnEW6ZBKGki6BMJp0CYQbSE0g3EBqAuEGUhMI95CC4TZSMNxGCoZ7SE0g3EBqAuEGUhMIo0mXQBhNumQShpIumYShpEsmYSjpkkkYSrrkIYwjXfIQhpLaHxANSjGdrBmtAAAAAElFTkSuQmCC','iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAIAAADYYG7QAAAAbUlEQVRYCc3BMRHAMADDMOn/o909QJYsFSkxEiMxEiMxEiMxEiMxEiMxEiMxEiMxEiMx8qtxcrQ4WhwtjhZHi6PF0eJocbQ4WhwtjhZHi6PF0eJocbQ4WhwtjhZHi6PF0eJocbQ4WhwtjhZHi+Od44Xj7gNvfSESOpEkyAAAAABJRU5ErkJggg==','iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAIAAADYYG7QAAAAc0lEQVRYCc3BsQ3AMADDMOn/o909QJYsFSkxEiMxEiMxEiMxEiMxEiMxEiMxEiMxEiMx8qtxcrQ4WhwtjhZHi6PF0eJocbQ4WhwtjhZHi6PF0eJocbQ4WhwtjhZHi6PF0eJocbQ4WhwtjhZHi+Od44Xj7gNvfSESOpEkyAAAAABJRU5ErkJggg=='];
+
+// ── ENTITY FROM IMAGE ─────────────────────────────────────────────────────────
+function buildFromPx(id,data,iw,ih){
+  const rawB=new Float32Array(256);
+  for(let by=0;by<16;by++) for(let bx=0;bx<16;bx++){
+    let s=0,c=0;
+    const x0=Math.floor(bx*iw/16),x1=Math.ceil((bx+1)*iw/16),y0=Math.floor(by*ih/16),y1=Math.ceil((by+1)*ih/16);
+    for(let py=y0;py<y1&&py<ih;py++) for(let px=x0;px<x1&&px<iw;px++){const i=(py*iw+px)*4;if(data[i+3]>10){s+=(data[i]+data[i+1]+data[i+2])/3;c++;}}
+    if(c>0)rawB[by*16+bx]=s/c;
+  }
+  return{rawB,id};
+}
+function loadFace(idx){return new Promise(res=>{
+  const img=new Image();
+  img.onload=()=>{
+    const c=document.createElement('canvas');c.width=img.width;c.height=img.height;c.getContext('2d').drawImage(img,0,0);
+    const d=c.getContext('2d').getImageData(0,0,img.width,img.height);
+    const ent=buildFromPx(idx,d.data,img.width,img.height);
+    const fc=document.getElementById('fc'+idx);if(fc){fc.getContext('2d').drawImage(img,0,0,16,16);}
+    res(ent);
+  };
+  img.onerror=()=>res(null);
+  img.src='data:image/png;base64,'+ZK_B64[idx];
+});}
+function buildFaceMask(ent){
+  if(!ent){faceMaskBuf=null;return;}
+  if(!faceMaskBuf)faceMaskBuf=new Uint8Array(CW*CH);
+  for(let py=0;py<CH;py++) for(let px=0;px<CW;px++)
+    faceMaskBuf[py*CW+px]=Math.round(ent.rawB[(py>>4)*16+(px>>4)]);
+  drawMaskPreview();
+}
+
+// ── LAYER STATE ───────────────────────────────────────────────────────────────
+const layers=[
+  {buf:new Uint8Array(CW*CH),tmp:new Uint8Array(CW*CH),bs:32,ps:'density',gs:'tear',  ga:40,nf:4, ns:8, dp:8,en:true,dx:0,dy:0,seed:0,   face:false},
+  {buf:new Uint8Array(CW*CH),tmp:new Uint8Array(CW*CH),bs:16,ps:'scanline',gs:'stripe',ga:40,nf:7, ns:15,dp:5,en:true,dx:0,dy:0,seed:137, face:false},
+  {buf:new Uint8Array(CW*CH),tmp:new Uint8Array(CW*CH),bs:8, ps:'diagonal',gs:'invert',ga:40,nf:12,ns:25,dp:3,en:true,dx:0,dy:0,seed:274, face:false},
+  {buf:new Uint8Array(CW*CH),tmp:new Uint8Array(CW*CH),bs:4, ps:'bayer',   gs:'shift', ga:40,nf:18,ns:32,dp:2,en:true,dx:0,dy:0,seed:411, face:false},
+  {buf:new Uint8Array(CW*CH),tmp:new Uint8Array(CW*CH),bs:16,ps:'density', gs:'none',  ga:30,nf:8, ns:12,dp:4,en:true,dx:0,dy:0,seed:548, face:true},
+];
+const compBuf=new Uint8Array(CW*CH);
+
+// ── RENDER LAYER ──────────────────────────────────────────────────────────────
+function renderLayer(L,t){
+  const{buf,tmp,bs:S,ps,gs,ga,nf,ns,seed,face}=L;
+  const nB=CW/S;const pats=PSETS[ps];const isBayer=ps==='bayer';
+  const gAmt=ga/100;
+
+  for(let by=0;by<nB;by++){
+    for(let bx=0;bx<nB;bx++){
+      // Noise source: face rawB if face driver + entity loaded, else Perlin
+      let noise;
+      if(face&&faceEntity){
+        const fX=Math.min(15,(bx*S+(S>>1))>>4),fY=Math.min(15,(by*S+(S>>1))>>4);
+        noise=faceEntity.rawB[fY*16+fX]/255;
+      } else {
+        noise=pn(bx*nf*0.01+t*ns*0.05,by*nf*0.01,seed);
+      }
+      const inv=gs==='invert'&&pn(bx*0.45+t*1.9,by*0.45,seed+300)>0.72-gAmt*0.5;
+      for(let dy=0;dy<S;dy++){
+        const py=by*S+dy,row=dy&7;
+        for(let dx=0;dx<S;dx++){
+          const px=bx*S+dx,col=dx&7;
+          let bit;
+          if(isBayer) bit=(noise*64>BAYER8[row*8+col])?1:0;
+          else {const pi=Math.min(7,noise*8|0);bit=(pats[pi][row]>>(7-col))&1;}
+          tmp[py*CW+px]=(bit^(inv?1:0))*255;
+        }
+      }
+    }
+  }
+  // Glitch displacement
+  if(gs==='tear'){
+    const tm=new Int16Array(nB);for(let b=0;b<nB;b++){const n=pn(b*0.35+t*2.5,seed+100);tm[b]=(n>0.62)?Math.round((n-0.62)/0.38*gAmt*36)|0:0;}
+    for(let y=0;y<CH;y++){const t2=tm[y/S|0],row=y*CW;for(let x=0;x<CW;x++)buf[row+x]=tmp[row+((x+t2)&255)];}
+  } else if(gs==='stripe'){
+    const sm=new Int16Array(nB);for(let b=0;b<nB;b++){const n=pn(b*0.4+t*1.8,seed+200);sm[b]=(n>0.58)?Math.round((n-0.58)/0.42*gAmt*30)|0:0;}
+    for(let y=0;y<CH;y++) for(let x=0;x<CW;x++){const sy=((y+sm[x/S|0])&255);buf[y*CW+x]=tmp[sy*CW+x];}
+  } else if(gs==='shift'){
+    for(let y=0;y<CH;y++){const row=y*CW;for(let x=0;x<CW;x++){const sh=Math.round((pn(x*0.18+t*4.5,y*0.18,seed+400)-0.5)*gAmt*6);buf[row+x]=tmp[row+((x+sh)&255)];}}
+  } else {buf.set(tmp);}
+}
+
+// ── BLEND + MASK ──────────────────────────────────────────────────────────────
+function blendAll(t){
+  // Update sinusoidal pixel displacements
+  for(let i=0;i<5;i++){const L=layers[i],ph=L.seed*0.0137;L.dx=Math.round(Math.sin(t*L.ns*0.007+ph)*L.dp);L.dy=Math.round(Math.cos(t*L.ns*0.005+ph*1.4)*L.dp);}
+
+  for(let y=0;y<CH;y++) for(let x=0;x<CW;x++){
+    let v=0;
+    // Sample each enabled layer with its displacement
+    if(blendMode==='add'){
+      let s=0;for(let i=0;i<5;i++){if(!layers[i].en)continue;const L=layers[i];s+=L.buf[(((y+L.dy)&255)*CW)+((x+L.dx)&255)];}
+      v=s>255?255:s;
+    } else if(blendMode==='darken'){
+      v=255;for(let i=0;i<5;i++){if(!layers[i].en)continue;const L=layers[i];const vv=L.buf[(((y+L.dy)&255)*CW)+((x+L.dx)&255)];if(vv<v)v=vv;}
+    } else if(blendMode==='multiply'){
+      v=255;for(let i=0;i<5;i++){if(!layers[i].en)continue;const L=layers[i];v=v*L.buf[(((y+L.dy)&255)*CW)+((x+L.dx)&255)]/255|0;}
+    } else if(blendMode==='max'){
+      for(let i=0;i<5;i++){if(!layers[i].en)continue;const L=layers[i];const vv=L.buf[(((y+L.dy)&255)*CW)+((x+L.dx)&255)];if(vv>v)v=vv;}
+    } else if(blendMode==='xor'){
+      for(let i=0;i<5;i++){if(!layers[i].en)continue;const L=layers[i];v^=L.buf[(((y+L.dy)&255)*CW)+((x+L.dx)&255)];}
+    } else if(blendMode==='screen'){
+      let inv=1;for(let i=0;i<5;i++){if(!layers[i].en)continue;const L=layers[i];inv*=(1-L.buf[(((y+L.dy)&255)*CW)+((x+L.dx)&255)]/255);}
+      v=(1-inv)*255|0;
+    } else if(blendMode==='diff'){
+      const vals=[];for(let i=0;i<5;i++){if(!layers[i].en)continue;const L=layers[i];vals.push(L.buf[(((y+L.dy)&255)*CW)+((x+L.dx)&255)]);}
+      v=vals.length?vals[0]:0;for(let i=1;i<vals.length;i++)v=Math.abs(v-vals[i]);
+    } else if(blendMode==='invert'){
+      let s=0;for(let i=0;i<5;i++){if(!layers[i].en)continue;const L=layers[i];s+=L.buf[(((y+L.dy)&255)*CW)+((x+L.dx)&255)];}
+      v=255-Math.min(255,s);
+    }
+    compBuf[y*CW+x]=v;
+  }
+
+  // Apply face mask
+  if(useMask&&faceMaskBuf){
+    for(let i=0;i<CW*CH;i++){
+      let m=faceMaskBuf[i];if(maskInvert)m=255-m;
+      m=Math.min(255,m*maskStrength/100)|0;
+      let v=compBuf[i];
+      if(maskMode==='mul')v=v*m/255|0;
+      else if(maskMode==='stencil')v=m>maskThreshold?v:0;
+      else if(maskMode==='add')v=Math.min(255,v+(m>>1));
+      else if(maskMode==='diff')v=Math.abs(v-m);
+      else if(maskMode==='sub')v=Math.max(0,v-(255-m));
+      compBuf[i]=v;
+    }
+  }
+}
+
+// ── DRAW ──────────────────────────────────────────────────────────────────────
+const mainCtx=document.getElementById('main-cv').getContext('2d');
+const pvCtxs=[0,1,2,3,4].map(i=>document.getElementById('pv'+i).getContext('2d'));
+const maskPvCtx=document.getElementById('mask-pv').getContext('2d');
+const mainImg=mainCtx.createImageData(CW,CH);
+
+function drawComposite(){
+  const p=PAL[G_PAL];const[br,bg,bb]=p.bg,[ar,ag,ab]=p.al;const d=mainImg.data;
+  for(let i=0;i<CW*CH;i++){const v=compBuf[i]/255;const ii=i*4;d[ii]=(br+(ar-br)*v)|0;d[ii+1]=(bg+(ag-bg)*v)|0;d[ii+2]=(bb+(ab-bb)*v)|0;d[ii+3]=255;}
+  mainCtx.putImageData(mainImg,0,0);
+}
+function drawPreviews(){
+  for(let li=0;li<5;li++){
+    if(!layers[li].en){pvCtxs[li].clearRect(0,0,96,96);continue;}
+    const pv=pvCtxs[li].createImageData(96,96);const d=pv.data;
+    for(let py=0;py<96;py++) for(let px=0;px<96;px++){
+      // Sample from 256 buffer: map 96px → 256px (sample at (px*256/96, py*256/96))
+      const sx=Math.floor(px*256/96),sy=Math.floor(py*256/96);
+      const v=layers[li].buf[sy*CW+sx];
+      const i=(py*96+px)*4;d[i]=d[i+1]=d[i+2]=v;d[i+3]=255;
+    }
+    pvCtxs[li].putImageData(pv,0,0);
+  }
+}
+function drawMaskPreview(){
+  if(!faceMaskBuf){maskPvCtx.fillStyle='#050505';maskPvCtx.fillRect(0,0,64,64);return;}
+  const pv=maskPvCtx.createImageData(64,64);const d=pv.data;
+  for(let py=0;py<64;py++) for(let px=0;px<64;px++){
+    const v=faceMaskBuf[Math.floor(py*4)*CW+Math.floor(px*4)];
+    const i=(py*64+px)*4;d[i]=d[i+1]=d[i+2]=v;d[i+3]=255;
+  }
+  maskPvCtx.putImageData(pv,0,0);
+}
+
+// ── ANIMATION ─────────────────────────────────────────────────────────────────
+let simTime=0,lastT=0,pvFr=0;
+function loop(now){
+  requestAnimationFrame(loop);
+  const dt=(now-lastT)/1000;lastT=now;simTime+=dt*G_SPEED;
+  for(let i=0;i<5;i++){if(layers[i].en)renderLayer(layers[i],simTime);}
+  blendAll(simTime);
+  drawComposite();
+  pvFr++;if(pvFr%4===0)drawPreviews();
+}
+requestAnimationFrame(t=>{lastT=t;requestAnimationFrame(loop);});
+
+// ── FACE LOADING ──────────────────────────────────────────────────────────────
+let loadedFaces=new Array(4).fill(null);
+async function initFaces(){
+  for(let i=0;i<4;i++)loadedFaces[i]=await loadFace(i);
+}
+async function selectFace(idx){
+  if(idx<0){faceEntity=null;faceMaskBuf=null;useMask=false;drawMaskPreview();document.getElementById('face-status').textContent='NO FACE';document.getElementById('face-none').classList.add('on');document.querySelectorAll('.fc').forEach(f=>f.classList.remove('on'));return;}
+  const ent=loadedFaces[idx]||(await loadFace(idx));
+  if(!ent)return;
+  loadedFaces[idx]=ent;faceEntity=ent;buildFaceMask(ent);useMask=true;
+  document.getElementById('face-status').textContent=`ZK-${String(idx+1).padStart(3,'0')} ACTIVE`;
+  document.getElementById('face-none').classList.remove('on');
+  document.querySelectorAll('.fc').forEach((f,i)=>f.classList.toggle('on',i===idx));
+}
+initFaces();
+
+// ── EVENT HANDLERS ─────────────────────────────────────────────────────────────
+// Block size
+document.querySelectorAll('[data-bs]').forEach(b=>b.addEventListener('click',()=>{
+  const li=+b.dataset.l;layers[li].bs=+b.dataset.bs;
+  document.querySelectorAll(`[data-l="${li}"][data-bs]`).forEach(x=>x.classList.toggle('on',x===b));
+  updateLH(li);
+}));
+// Pattern style
+document.querySelectorAll('[data-ps]').forEach(b=>b.addEventListener('click',()=>{
+  const li=+b.dataset.l;layers[li].ps=b.dataset.ps;
+  document.querySelectorAll(`[data-l="${li}"][data-ps]`).forEach(x=>x.classList.toggle('on',x===b));
+  updateLH(li);
+}));
+// Glitch style
+document.querySelectorAll('[data-gs]').forEach(b=>b.addEventListener('click',()=>{
+  const li=+b.dataset.l;layers[li].gs=b.dataset.gs;
+  document.querySelectorAll(`[data-l="${li}"][data-gs]`).forEach(x=>x.classList.toggle('on',x===b));
+  updateLH(li);
+}));
+// Layer toggle
+document.querySelectorAll('[data-t]').forEach(b=>b.addEventListener('click',()=>{
+  const li=+b.dataset.t;layers[li].en=!layers[li].en;b.classList.toggle('on',layers[li].en);
+}));
+// Blend mode
+document.querySelectorAll('[data-blend]').forEach(b=>b.addEventListener('click',()=>{
+  blendMode=b.dataset.blend;document.querySelectorAll('[data-blend]').forEach(x=>x.classList.toggle('on',x===b));
+}));
+// Palette
+document.querySelectorAll('[data-pal]').forEach(b=>b.addEventListener('click',()=>{
+  G_PAL=+b.dataset.pal;document.querySelectorAll('[data-pal]').forEach(x=>x.classList.toggle('on',x===b));
+}));
+// Mask mode
+document.querySelectorAll('[data-mask]').forEach(b=>b.addEventListener('click',()=>{
+  maskMode=b.dataset.mask;document.querySelectorAll('[data-mask]').forEach(x=>x.classList.toggle('on',x===b));
+}));
+// Face selector
+document.querySelectorAll('.fc').forEach(f=>f.addEventListener('click',()=>selectFace(+f.dataset.face)));
+document.getElementById('face-none').addEventListener('click',()=>selectFace(-1));
+// Mask invert toggle
+document.getElementById('mask-inv-btn').addEventListener('click',function(){maskInvert=!maskInvert;this.textContent=maskInvert?'INVERT ■':'INVERT ☐';this.classList.toggle('on',maskInvert);});
+// Speed
+document.getElementById('m-spd').addEventListener('input',function(){G_SPEED=+this.value/5;document.getElementById('v-spd').textContent=G_SPEED.toFixed(1)+'×';});
+// Mask sliders
+document.getElementById('m-thr').addEventListener('input',function(){maskThreshold=+this.value;document.getElementById('v-thr').textContent=this.value;});
+document.getElementById('m-str').addEventListener('input',function(){maskStrength=+this.value;document.getElementById('v-str').textContent=this.value;});
+// Layer sliders
+const paramFmt={ga:v=>v,nf:v=>(v*0.01).toFixed(2),ns:v=>(v*0.05).toFixed(2),dp:v=>v+'px'};
+document.querySelectorAll('input[type=range][data-l]').forEach(s=>s.addEventListener('input',function(){
+  const li=+this.dataset.l,p=this.dataset.p,v=+this.value;
+  if(p==='ga')layers[li].ga=v;
+  else if(p==='nf')layers[li].nf=v;
+  else if(p==='ns')layers[li].ns=v;
+  else if(p==='dp')layers[li].dp=v;
+  const b=this.nextElementSibling;if(b&&paramFmt[p])b.textContent=paramFmt[p](v);
+}));
+
+function updateLH(li){
+  const L=layers[li];const el=document.getElementById('lh'+li);
+  if(el)el.textContent=`${L.bs}px ${L.ps.toUpperCase()} ${L.gs.toUpperCase()}`;
+}
+</script>

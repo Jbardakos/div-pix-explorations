@@ -3,112 +3,489 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Grey Mosaic</title>
+<title>Wave Interference · Face</title>
 <style>
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-  :root {
-    --cell: 80px;
-    --gap: 0px;
-    --bg: #111;
-  }
-
-  body {
-    background: var(--bg);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    min-height: 100vh;
-    font-family: 'Courier New', monospace;
-  }
-
-  .label {
-    color: #444;
-    font-size: 10px;
-    letter-spacing: 0.3em;
-    text-transform: uppercase;
-    margin-bottom: 20px;
-  }
-
-  .grid {
-    display: grid;
-    grid-template-columns: repeat(5, var(--cell));
-    grid-template-rows: repeat(5, var(--cell));
-    gap: var(--gap);
-  }
-
-  .cell {
-    width: var(--cell);
-    height: var(--cell);
-    transition: transform 0.25s ease, filter 0.25s ease;
-    cursor: crosshair;
-  }
-
-  .cell:hover {
-    transform: scale(1.12);
-    filter: brightness(1.4);
-    z-index: 10;
-    position: relative;
-  }
-
-  .btn {
-    margin-top: 24px;
-    background: transparent;
-    border: 1px solid #333;
-    color: #555;
-    font-family: 'Courier New', monospace;
-    font-size: 10px;
-    letter-spacing: 0.3em;
-    text-transform: uppercase;
-    padding: 8px 20px;
-    cursor: pointer;
-    transition: border-color 0.2s, color 0.2s;
-  }
-
-  .btn:hover {
-    border-color: #888;
-    color: #aaa;
-  }
-
-  @keyframes fadeIn {
-    from { opacity: 0; }
-    to   { opacity: 1; }
-  }
-
-  .cell { animation: fadeIn 0.4s ease both; }
+  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  :root{--bg:#020202;--p:#060606;--b:#1a1a1a;--dim:#333;--txt:#888;--hi:#ccc;--br:#fff}
+  body{background:var(--bg);color:var(--txt);
+    font-family:'Share Tech Mono','Courier New',monospace;
+    display:flex;flex-direction:column;align-items:center;
+    min-height:100vh;padding:12px 16px 20px;gap:10px}
+  .header{display:flex;align-items:center;gap:16px;width:100%;max-width:960px;
+    border-bottom:1px solid var(--b);padding-bottom:8px}
+  .htitle{font-size:11px;letter-spacing:.4em;color:var(--br);text-transform:uppercase}
+  .hsub{font-size:8px;letter-spacing:.2em;color:var(--dim)}
+  .previews{display:flex;align-items:flex-end;gap:8px}
+  .pw{display:flex;flex-direction:column;gap:3px;align-items:center}
+  .plbl{font-size:8px;letter-spacing:.2em;color:var(--dim)}
+  .previews canvas{image-rendering:pixelated;border:1px solid var(--b)}
+  .stage{display:flex;gap:12px;align-items:flex-start}
+  #cv{display:block;border:1px solid var(--b);image-rendering:pixelated;cursor:crosshair}
+  .panel{background:var(--p);border:1px solid var(--b);width:192px;flex-shrink:0;
+    max-height:622px;overflow-y:auto;scrollbar-width:thin;scrollbar-color:var(--dim) transparent;
+    display:flex;flex-direction:column}
+  .ps{padding:9px 11px;border-bottom:1px solid var(--b);display:flex;flex-direction:column;gap:7px}
+  .pt{font-size:8px;letter-spacing:.35em;color:var(--hi);text-transform:uppercase;margin-bottom:1px}
+  .row{display:flex;flex-direction:column;gap:2px}
+  .rt{display:flex;justify-content:space-between;font-size:9px;letter-spacing:.08em;color:var(--txt)}
+  .rt span{color:var(--br);font-size:10px}
+  input[type=range]{-webkit-appearance:none;width:100%;height:1px;background:var(--dim);outline:none;cursor:pointer}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:8px;height:8px;
+    border-radius:50%;background:var(--hi);cursor:pointer}
+  input[type=range]:hover::-webkit-slider-thumb{background:var(--br)}
+  select{background:var(--bg);border:1px solid var(--dim);color:var(--txt);
+    font-family:inherit;font-size:9px;padding:3px 4px;width:100%;outline:none;cursor:pointer}
+  .irow{display:flex;align-items:center;gap:5px}
+  .irow label{font-size:9px;color:var(--txt);white-space:nowrap}
+  input[type=number]{background:var(--bg);border:1px solid var(--dim);color:var(--br);
+    font-family:inherit;font-size:11px;width:44px;text-align:center;padding:2px 3px;outline:none}
+  input[type=number]:focus{border-color:var(--hi)}
+  .bgrid{display:grid;grid-template-columns:1fr 1fr;gap:4px}
+  .btn{background:transparent;border:1px solid var(--dim);color:var(--txt);
+    font-family:inherit;font-size:8px;letter-spacing:.2em;text-transform:uppercase;
+    padding:5px 0;cursor:pointer;transition:border-color .12s,color .12s}
+  .btn:hover{border-color:var(--hi);color:var(--hi)}
+  .btn.full{grid-column:1/-1}
+  .btn.lit{border-color:var(--br);color:var(--br)}
+  .btn.kill{border-color:#2a1010;color:#552020}
+  .btn.kill:hover{border-color:#c33;color:#f44}
+  .stat{font-size:8px;letter-spacing:.1em;color:var(--dim);padding:5px 11px;
+    text-align:right;border-top:1px solid var(--b)}
+  .stat span{color:var(--hi)}
+  /* zone bar */
+  .zone-bar{display:flex;flex-direction:column;gap:6px;width:100%;max-width:960px;
+    background:var(--p);border:1px solid var(--b);padding:10px}
+  .zb-title{font-size:8px;letter-spacing:.3em;color:var(--hi);text-transform:uppercase;
+    display:flex;justify-content:space-between;align-items:center}
+  .zb-cards{display:flex;gap:5px;flex-wrap:wrap;justify-content:center}
+  .zcard{background:var(--bg);border:1px solid var(--b);padding:6px 7px;
+    display:flex;flex-direction:column;gap:4px;width:78px;transition:border-color .12s}
+  .zcard.off{opacity:.38}
+  .zcard:hover{border-color:var(--dim)}
+  .zc-top{display:flex;justify-content:space-between;align-items:center}
+  .zc-label{font-size:7px;letter-spacing:.1em;color:var(--dim);text-transform:uppercase}
+  .zc-amp{font-size:9px;color:var(--hi)}
+  .zc-vis{background:transparent;border:none;font-size:11px;cursor:pointer;padding:0;color:var(--dim)}
+  .zc-vis:hover{color:var(--br)}
+  .zc-name{font-size:8px;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .zc-row{display:flex;align-items:center;gap:3px}
+  .zc-r{-webkit-appearance:none;width:100%;height:1px;background:linear-gradient(to right,#000,#fff);
+    outline:none;cursor:pointer;flex:1}
+  .zc-r::-webkit-slider-thumb{-webkit-appearance:none;width:7px;height:7px;
+    border-radius:50%;background:var(--hi);cursor:pointer}
 </style>
 </head>
 <body>
 
-<p class="label">5 × 5 · grey field</p>
+<div class="header">
+  <div>
+    <div class="htitle">ψ wave interference · face topology</div>
+    <div class="hsub">circular wave beacons · double-slit interference · b/w strict · no antialiasing</div>
+  </div>
+</div>
 
-<div class="grid" id="grid"></div>
+<div class="previews">
+  <div class="pw"><div class="plbl">1×</div><canvas id="c1"></canvas></div>
+  <div class="pw"><div class="plbl">2×</div><canvas id="c2"></canvas></div>
+  <div class="pw"><div class="plbl">3×</div><canvas id="c3"></canvas></div>
+</div>
 
-<button class="btn" onclick="generate()">regenerate</button>
+<div class="stage">
+  <canvas id="cv" width="600" height="600"></canvas>
+
+  <div class="panel">
+    <div class="ps">
+      <div class="pt">grid · beacons</div>
+      <div class="irow">
+        <label>N</label><input type="number" id="nInput" value="120" min="10" max="300">
+        <label>src</label><input type="number" id="wCount" value="4" min="1" max="12">
+      </div>
+    </div>
+    <div class="ps">
+      <div class="pt">spawn origin</div>
+      <div class="row"><div class="rt">x <span id="lsx">50%</span></div><input type="range" id="sStartX" min="0" max="100" value="50"></div>
+      <div class="row"><div class="rt">y <span id="lsy">50%</span></div><input type="range" id="sStartY" min="0" max="100" value="50"></div>
+    </div>
+    <div class="ps">
+      <div class="pt">motion</div>
+      <div class="row"><div class="rt">drift speed <span id="lspd">0.3</span></div><input type="range" id="sSpeed" min="0" max="30" value="3"></div>
+      <div class="row"><div class="rt">inertia <span id="linr">0.80</span></div><input type="range" id="sInertia" min="1" max="19" value="16"></div>
+    </div>
+    <div class="ps">
+      <div class="pt">wave physics</div>
+      <div class="row"><div class="rt">λ wavelength <span id="llam">14</span></div><input type="range" id="sLambda" min="3" max="50" value="14"></div>
+      <div class="row"><div class="rt">ω pulse speed <span id="lomg">0.08</span></div><input type="range" id="sOmega" min="1" max="100" value="8"></div>
+      <div class="row"><div class="rt">amplitude <span id="lamp">1.0</span></div><input type="range" id="sAmp" min="1" max="40" value="10"></div>
+      <div class="row"><div class="rt">coherence <span id="lcoh">60%</span></div><input type="range" id="sCoh" min="0" max="100" value="60"></div>
+      <div class="row"><div class="rt">r decay <span id="ldcy">0.40</span></div><input type="range" id="sRdec" min="0" max="80" value="20"></div>
+    </div>
+    <div class="ps">
+      <div class="pt">rendering</div>
+      <div class="row"><div class="rt">contrast <span id="lcon">1.5</span></div><input type="range" id="sCon" min="1" max="80" value="15"></div>
+      <div class="row"><div class="rt">harmonics <span id="lhar">1</span></div><input type="range" id="sHar" min="1" max="5" value="1"></div>
+      <div class="row"><div class="rt">displacement <span id="ldisp">3</span></div><input type="range" id="sDisp" min="0" max="15" value="3"></div>
+    </div>
+    <div class="ps">
+      <div class="pt">border rule</div>
+      <select id="ruleBorder">
+        <option value="bounce">bounce / reflect</option>
+        <option value="wrap">wrap around</option>
+        <option value="respawn">respawn</option>
+        <option value="kill">kill</option>
+      </select>
+    </div>
+    <div class="ps">
+      <button class="btn full lit" id="faceBtn" onclick="toggleAllFace()">◉ face outline ON</button>
+    </div>
+    <div class="ps">
+      <div class="bgrid">
+        <button class="btn" onclick="init()">reset</button>
+        <button class="btn" onclick="respawn()">respawn</button>
+        <button class="btn" id="pauseBtn" onclick="togglePause()">pause</button>
+        <button class="btn kill" onclick="() => {}">·</button>
+      </div>
+    </div>
+    <div class="stat">src:<span id="sSrc">0</span> t:<span id="sT">0</span></div>
+  </div>
+</div>
+
+<div class="zone-bar">
+  <div class="zb-title">
+    <span>face zones · wave amplitude modifiers</span>
+    <span style="color:var(--dim);font-size:7px">0.0 = absorb · 1.0 = neutral · 2.0 = amplify</span>
+  </div>
+  <div class="zb-cards" id="zoneBar"></div>
+</div>
 
 <script>
-  function randGrey() {
-    const v = Math.floor(Math.random() * 220) + 10; // 10–230
-    return `rgb(${v},${v},${v})`;
-  }
+const CV = 600;
 
-  function generate() {
-    const grid = document.getElementById('grid');
-    grid.innerHTML = '';
-    for (let i = 0; i < 25; i++) {
-      const cell = document.createElement('div');
-      cell.className = 'cell';
-      cell.style.background = randGrey();
-      const row = Math.floor(i / 5), col = i % 5;
-      const dist = Math.max(Math.abs(row - 2), Math.abs(col - 2)); // Chebyshev distance from center
-      cell.style.animationDelay = `${dist * 80}ms`;
-      grid.appendChild(cell);
+// ── FACE ZONE GEOMETRY ───────────────────────────────────────────────────────
+const FACE_ZONES = [
+  {id:'eyeL', label:'eye socket L', shape:'ellipse', cx:233,cy:262,rx:43,ry:27,  amp:0.04, visible:true},
+  {id:'eyeR', label:'eye socket R', shape:'ellipse', cx:367,cy:262,rx:43,ry:27,  amp:0.04, visible:true},
+  {id:'browL',label:'brow+bag L',   shape:'ellipse', cx:233,cy:256,rx:63,ry:46,  amp:1.8,  visible:true},
+  {id:'browR',label:'brow+bag R',   shape:'ellipse', cx:367,cy:256,rx:63,ry:46,  amp:1.8,  visible:true},
+  {id:'nose', label:'nose',         shape:'triangle',pts:[[300,292],[264,354],[336,354]], amp:0.28, visible:true},
+  {id:'mouth',label:'mouth',        shape:'rhombus', cx:300,cy:402,rx:60,ry:28,  amp:1.3,  visible:true},
+  {id:'earL', label:'ear L',        shape:'rect',    x:80,y:237,w:38,h:70,       amp:1.05, visible:true},
+  {id:'earR', label:'ear R',        shape:'rect',    x:482,y:237,w:38,h:70,      amp:1.05, visible:true},
+  {id:'neck', label:'neck',         shape:'rect',    x:245,y:457,w:110,h:95,     amp:1.55, visible:true},
+  {id:'face', label:'face hexagon', shape:'hexagon', cx:300,cy:295,rx:148,ry:188, amp:1.0, visible:true},
+  {id:'head', label:'head circle',  shape:'circle',  cx:300,cy:278,r:197,        amp:0.65, visible:true},
+];
+
+// precompute hex vertices
+FACE_ZONES.forEach(z=>{
+  if(z.shape==='hexagon'){
+    z.verts=[];
+    for(let i=0;i<6;i++){const a=Math.PI/6+i*Math.PI/3; z.verts.push([z.cx+z.rx*Math.cos(a),z.cy+z.ry*Math.sin(a)]);}
+  }
+});
+
+// ── GEOMETRY ─────────────────────────────────────────────────────────────────
+function ptInPoly(px,py,v){
+  let inside=false,n=v.length;
+  for(let i=0,j=n-1;i<n;j=i++){
+    const xi=v[i][0],yi=v[i][1],xj=v[j][0],yj=v[j][1];
+    if(((yi>py)!==(yj>py))&&(px<(xj-xi)*(py-yi)/(yj-yi)+xi)) inside=!inside;
+  }
+  return inside;
+}
+function ptInTri(px,py,p){
+  function cr(ax,ay,bx,by,px,py){return(bx-ax)*(py-ay)-(by-ay)*(px-ax);}
+  const d1=cr(p[0][0],p[0][1],p[1][0],p[1][1],px,py);
+  const d2=cr(p[1][0],p[1][1],p[2][0],p[2][1],px,py);
+  const d3=cr(p[2][0],p[2][1],p[0][0],p[0][1],px,py);
+  return !((d1<0||d2<0||d3<0)&&(d1>0||d2>0||d3>0));
+}
+function ptInZone(px,py,z){
+  switch(z.shape){
+    case 'circle':   return Math.hypot(px-z.cx,py-z.cy)<=z.r;
+    case 'ellipse':  {const dx=(px-z.cx)/z.rx,dy=(py-z.cy)/z.ry;return dx*dx+dy*dy<=1;}
+    case 'hexagon':  return ptInPoly(px,py,z.verts);
+    case 'triangle': return ptInTri(px,py,z.pts);
+    case 'rhombus':  return Math.abs(px-z.cx)/z.rx+Math.abs(py-z.cy)/z.ry<=1;
+    case 'rect':     return px>=z.x&&px<=z.x+z.w&&py>=z.y&&py<=z.y+z.h;
+  }
+  return false;
+}
+
+// ── STATE ─────────────────────────────────────────────────────────────────────
+let N=120, zoneMap, zoneBoundary;
+let sources=[], paused=false, rafId=null, t=0, frame=0;
+let showFace=true;
+const wf = {field:null}; // wave field
+const offscreen=document.createElement('canvas');
+
+// ── GETTERS ───────────────────────────────────────────────────────────────────
+function getN()    {return Math.max(10,Math.min(300,+document.getElementById('nInput').value||120));}
+function getWC()   {return Math.max(1,Math.min(12,+document.getElementById('wCount').value||4));}
+function getSpd()  {return +document.getElementById('sSpeed').value*0.1;}
+function getInr()  {return +document.getElementById('sInertia').value/20;}
+function getLam()  {return +document.getElementById('sLambda').value;}
+function getOmg()  {return +document.getElementById('sOmega').value/100;}
+function getAmp()  {return +document.getElementById('sAmp').value/10;}
+function getCoh()  {return +document.getElementById('sCoh').value/100;}
+function getRdec() {return +document.getElementById('sRdec').value/100;}
+function getCon()  {return +document.getElementById('sCon').value/10;}
+function getHar()  {return +document.getElementById('sHar').value|0;}
+function getDisp() {return +document.getElementById('sDisp').value|0;}
+
+// ── ZONE MAP ──────────────────────────────────────────────────────────────────
+function buildZoneMap(){
+  zoneMap=new Uint8Array(N*N).fill(255);
+  const sc=CV/N;
+  for(let cy=0;cy<N;cy++) for(let cx=0;cx<N;cx++){
+    const px=(cx+.5)*sc,py=(cy+.5)*sc;
+    for(let zi=0;zi<FACE_ZONES.length;zi++){
+      if(ptInZone(px,py,FACE_ZONES[zi])){zoneMap[cy*N+cx]=zi;break;}
     }
   }
+  // boundary detection
+  zoneBoundary=new Uint8Array(N*N).fill(0);
+  for(let cy=1;cy<N-1;cy++) for(let cx=1;cx<N-1;cx++){
+    const z=zoneMap[cy*N+cx];
+    if(zoneMap[cy*N+cx-1]!==z||zoneMap[cy*N+cx+1]!==z||
+       zoneMap[(cy-1)*N+cx]!==z||zoneMap[(cy+1)*N+cx]!==z)
+      zoneBoundary[cy*N+cx]=1;
+  }
+}
 
-  generate();
+// ── WAVE SOURCES ─────────────────────────────────────────────────────────────
+function makeSource(i){
+  const sx=+document.getElementById('sStartX').value/100*(N-1);
+  const sy=+document.getElementById('sStartY').value/100*(N-1);
+  const lam=getLam(), coh=getCoh();
+  const variation=lam*(1-coh)*(Math.random()-.5)*0.8;
+  const a=Math.random()*Math.PI*2, sp=Math.max(0.05,getSpd())*(0.6+Math.random()*.8);
+  return {
+    x:sx+(Math.random()-.5)*N*.06,
+    y:sy+(Math.random()-.5)*N*.06,
+    vx:Math.cos(a)*sp, vy:Math.sin(a)*sp,
+    wavelength:Math.max(2,lam+variation),
+    frequency:getOmg()*(0.8+Math.random()*.4),
+    amplitude:getAmp()*(0.7+Math.random()*.6),
+    phase:Math.random()*Math.PI*2,
+    dead:false,
+  };
+}
+
+function respawn(){
+  sources=[];
+  const wc=getWC();
+  for(let i=0;i<wc;i++) sources.push(makeSource(i));
+}
+
+// ── WAVE FIELD COMPUTATION ────────────────────────────────────────────────────
+function computeWave(){
+  const field=wf.field;
+  field.fill(0);
+  const har=getHar(), rdec=getRdec();
+  sources.forEach(s=>{
+    if(!isFinite(s.x)||!isFinite(s.y)) return;
+    const ax=s.x,ay=s.y,λ=s.wavelength,ω=s.frequency,A=s.amplitude,ph=s.phase;
+    for(let cy=0;cy<N;cy++){
+      for(let cx=0;cx<N;cx++){
+        const r=Math.sqrt((cx-ax)**2+(cy-ay)**2)||0.001;
+        const env=rdec>0?Math.pow(r+1,-rdec):1;
+        let val=Math.cos(2*Math.PI*r/λ - ω*t + ph);
+        // harmonics for richer banding
+        if(har>=2) val+=0.4*Math.cos(4*Math.PI*r/λ - 2*ω*t + ph);
+        if(har>=3) val+=0.2*Math.cos(6*Math.PI*r/λ - 3*ω*t + ph);
+        if(har>=4) val+=0.1*Math.cos(8*Math.PI*r/λ - 4*ω*t + ph);
+        if(har>=5) val+=0.05*Math.cos(10*Math.PI*r/λ - 5*ω*t + ph);
+        field[cy*N+cx]+=A*env*val;
+      }
+    }
+  });
+  // apply zone amplitude modifiers
+  for(let i=0;i<N*N;i++){
+    const zi=zoneMap[i];
+    const amp=zi<FACE_ZONES.length?FACE_ZONES[zi].amp:0.08;
+    field[i]*=amp;
+  }
+}
+
+// ── STEP SOURCES ─────────────────────────────────────────────────────────────
+function stepSources(){
+  const inr=getInr(), sp=Math.max(0.05,getSpd());
+  const rule=document.getElementById('ruleBorder').value;
+  const add=[];
+  sources.forEach(s=>{
+    if(!isFinite(s.x)||!isFinite(s.y)||!isFinite(s.vx)||!isFinite(s.vy)){s.dead=true;return;}
+    const a=Math.atan2(s.vy,s.vx)+(Math.random()-.5)*(1-inr)*Math.PI;
+    const cs=Math.hypot(s.vx,s.vy)||sp;
+    const ns=Math.max(0.01,cs*inr+sp*(1-inr));
+    s.vx=Math.cos(a)*ns; s.vy=Math.sin(a)*ns;
+    let nx=s.x+s.vx, ny=s.y+s.vy;
+    const hx=nx<0||nx>=N, hy=ny<0||ny>=N;
+    if(hx||hy){
+      if(rule==='bounce'){if(hx){s.vx*=-1;nx=Math.max(0,Math.min(N-1,nx));}if(hy){s.vy*=-1;ny=Math.max(0,Math.min(N-1,ny));}}
+      else if(rule==='wrap'){nx=((nx%N)+N)%N;ny=((ny%N)+N)%N;}
+      else if(rule==='respawn'){s.dead=true;add.push(makeSource(0));return;}
+      else if(rule==='kill'){s.dead=true;return;}
+    }
+    s.x=nx; s.y=ny;
+  });
+  sources=sources.filter(s=>!s.dead);
+  sources.push(...add);
+  if(sources.length===0) respawn();
+}
+
+// ── RENDER ────────────────────────────────────────────────────────────────────
+function render(){
+  const con=getCon(), disp=getDisp();
+  offscreen.width=N; offscreen.height=N;
+  const oc=offscreen.getContext('2d');
+  const img=oc.createImageData(N,N);
+  const d=img.data;
+  const field=wf.field;
+
+  for(let i=0;i<N*N;i++){
+    // strict B&W threshold — no antialiasing
+    const v=field[i]*con>0?255:0;
+    let pv=v;
+
+    // face boundary with wave displacement
+    if(showFace){
+      const cx=i%N,cy=(i/N)|0;
+      let lx=cx,ly=cy;
+      if(disp>0){
+        // gradient-based displacement
+        const gx=(field[cy*N+Math.min(N-1,cx+1)]-field[cy*N+Math.max(0,cx-1)])*disp;
+        const gy=(field[Math.min(N-1,cy+1)*N+cx]-field[Math.max(0,cy-1)*N+cx])*disp;
+        lx=Math.max(0,Math.min(N-1,cx+Math.round(gx)));
+        ly=Math.max(0,Math.min(N-1,cy+Math.round(gy)));
+      }
+      const li=ly*N+lx;
+      const zi=zoneMap[li];
+      if(zoneBoundary[li]&&zi<FACE_ZONES.length&&FACE_ZONES[zi].visible){
+        pv=255-v; // invert — always visible against B&W wave
+      }
+    }
+
+    const p=i<<2;
+    d[p]=d[p+1]=d[p+2]=pv; d[p+3]=255;
+  }
+  oc.putImageData(img,0,0);
+
+  // previews
+  [1,2,3].forEach((sc,i)=>{
+    const c=document.getElementById(`c${i+1}`);
+    c.width=N*sc; c.height=N*sc;
+    const ctx=c.getContext('2d'); ctx.imageSmoothingEnabled=false;
+    ctx.drawImage(offscreen,0,0,N,N,0,0,N*sc,N*sc);
+  });
+
+  // main
+  const mc=document.getElementById('cv').getContext('2d');
+  mc.imageSmoothingEnabled=false;
+  mc.drawImage(offscreen,0,0,N,N,0,0,CV,CV);
+
+  // source beacons — strictly B&W dot (inverted against local wave)
+  const sc2=CV/N;
+  sources.forEach(s=>{
+    if(!isFinite(s.x)||!isFinite(s.y)) return;
+    const px=(s.x*sc2)|0, py=(s.y*sc2)|0;
+    const dotW=Math.max(2,sc2|0);
+    const i=Math.round(s.y)*N+Math.round(s.x);
+    const bg=field[Math.max(0,Math.min(N*N-1,i))]*con>0?255:0;
+    mc.fillStyle=bg>128?'#000':'#fff';
+    mc.fillRect(px-dotW/2|0, py-dotW/2|0, dotW, dotW);
+  });
+
+  document.getElementById('sSrc').textContent=sources.length;
+  document.getElementById('sT').textContent=frame;
+}
+
+// ── LOOP ──────────────────────────────────────────────────────────────────────
+function init(){
+  if(rafId) cancelAnimationFrame(rafId);
+  N=getN();
+  wf.field=new Float32Array(N*N);
+  buildZoneMap();
+  respawn();
+  t=0; frame=0; paused=false;
+  document.getElementById('pauseBtn').textContent='pause';
+  loop();
+}
+
+function loop(){
+  if(paused) return;
+  frame++;
+  if(frame%6===0){
+    t+=getOmg()*6;
+    stepSources();
+    computeWave();
+    render();
+  }
+  rafId=requestAnimationFrame(loop);
+}
+
+function togglePause(){
+  paused=!paused;
+  document.getElementById('pauseBtn').textContent=paused?'play':'pause';
+  if(!paused) loop();
+}
+
+function toggleAllFace(){
+  showFace=!showFace;
+  const b=document.getElementById('faceBtn');
+  b.textContent=showFace?'◉ face outline ON':'○ face outline OFF';
+  b.className='btn full'+(showFace?' lit':'');
+}
+
+// ── ZONE BAR ──────────────────────────────────────────────────────────────────
+function buildZoneBar(){
+  const bar=document.getElementById('zoneBar');
+  bar.innerHTML='';
+  FACE_ZONES.forEach((z,zi)=>{
+    const card=document.createElement('div');
+    card.className='zcard'+(z.visible?'':' off');
+    card.id='zc-'+z.id;
+    const av=(z.amp*100)|0;
+    card.innerHTML=`
+      <div class="zc-top">
+        <span class="zc-label">${z.id}</span>
+        <button class="zc-vis" onclick="toggleZone(${zi})" title="show/hide boundary">${z.visible?'◉':'○'}</button>
+      </div>
+      <div class="zc-name">${z.label}</div>
+      <div class="zc-row">
+        <input type="range" class="zc-r" min="0" max="200" value="${av}" oninput="setAmp(${zi},+this.value)">
+        <span class="zc-amp" id="zca-${zi}">${z.amp.toFixed(2)}</span>
+      </div>`;
+    bar.appendChild(card);
+  });
+}
+function toggleZone(zi){FACE_ZONES[zi].visible=!FACE_ZONES[zi].visible;buildZoneBar();}
+function setAmp(zi,v){FACE_ZONES[zi].amp=v/100;document.getElementById('zca-'+zi).textContent=(v/100).toFixed(2);}
+
+// ── SLIDER LABELS ─────────────────────────────────────────────────────────────
+function bind(id,lid,fmt){
+  const el=document.getElementById(id),lb=document.getElementById(lid);
+  const u=()=>{lb.textContent=fmt(el.value);};
+  el.addEventListener('input',u); u();
+}
+bind('sStartX','lsx',v=>`${v}%`);
+bind('sStartY','lsy',v=>`${v}%`);
+bind('sSpeed','lspd',v=>(v*.1).toFixed(1));
+bind('sInertia','linr',v=>(v/20).toFixed(2));
+bind('sLambda','llam',v=>v);
+bind('sOmega','lomg',v=>(v/100).toFixed(2));
+bind('sAmp','lamp',v=>(v/10).toFixed(1));
+bind('sCoh','lcoh',v=>`${v}%`);
+bind('sRdec','ldcy',v=>(v/100).toFixed(2));
+bind('sCon','lcon',v=>(v/10).toFixed(1));
+bind('sHar','lhar',v=>v);
+bind('sDisp','ldisp',v=>v);
+
+document.getElementById('nInput').addEventListener('keydown',e=>{if(e.key==='Enter')init();});
+document.getElementById('wCount').addEventListener('change',respawn);
+
+buildZoneBar();
+init();
 </script>
-
 </body>
 </html>

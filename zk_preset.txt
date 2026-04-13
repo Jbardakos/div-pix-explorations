@@ -1,0 +1,112 @@
+TRANSFORM AN INPUT PHOTO INTO ZK ASCII SYNTH OUTPUT
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. PREPARE IMAGE  256×256px PNG, desaturated for luminance mapping.
+
+2. LOAD AS FACE   Select any face thumbnail. Its 16×16 brightness
+   DRIVER         grid becomes the noise source for ◈-enabled layers.
+                  Bright → dense patterns. Dark → sparse / empty.
+
+3. LAYER STRATEGY
+   L1 (coarse)  bs=64 or 32. DENSITY or BAYER. Establishes macro form.
+   L2 (mid)     bs=16 or 8.  SCANLINE or DIAGONAL. Adds texture grid.
+   L3 (fine)    bs=4.        GLITCH or BAYER. Micro-detail and grain.
+
+4. ALGORITHMS
+   DENSITY    Halftone-style ordered fill, 8 density levels.
+   SCANLINE   Horizontal raster lines, sparse to solid.
+   DIAGONAL   Cross-hatch from corner glyphs.
+   GLITCH     Corrupt data patterns, sparse XOR masks.
+   BAYER      8×8 ordered dithering matrix.
+   REACTION   Gray-Scott reaction-diffusion feeds the pattern index.
+   WAVEFOLD   Sinusoidal folded waveform — infinite harmonic bands.
+   VORONOI    Block-level distance field from procedural seed points.
+   PHYSARUM   Slime-mould agent diffusion approximation.
+   LENIA      Continuous cellular automaton (smooth kernel).
+
+5. NOISE MODES
+   DIRECTIONAL  Noise scrolls linearly in +X direction.
+   EVOLUTIVE    Noise coordinates orbit circularly — no net drift.
+   SELF         Previous frame's composite drives the pattern index.
+
+6. BLEND MODES (per layer, accumulative into composite)
+   ADD / SCR / OVL → build brightness  XOR → interference edges
+   DRK / MUL → suppress noise          DIF → tonal contrast rings
+
+7. SELF-SYNTHESIS
+   Turn on SELF and set DECAY to 90–98% for slow recursive burn.
+   Enable ◈ on L3 (fine layer) for micro-feedback detail injection.
+   XOR blend mode creates glitchy recursive interference loops.
+
+8. MASTER POST
+   BRIGHTNESS / CONTRAST for final tonal control.
+   GAMMA < 1.0 lifts shadows. GAMMA > 1.0 deepens blacks.
+   INVERT at 100% produces a negative — useful for XENO/ACID palettes.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+
+PRESET:
+
+{
+  "version": "zk-synth-v2",
+  "global": {
+    "palette": 0,
+    "speed": 2.2,
+    "faceIdx": 0,
+    "faceBlend": "scr",
+    "brightness": 128,
+    "contrast": 38,
+    "gamma": 0.1,
+    "invert": 0
+  },
+  "selfSynth": {
+    "on": false,
+    "mix": 1,
+    "decay": 1,
+    "blend": "mul"
+  },
+  "layers": [
+    {
+      "index": 1,
+      "enabled": true,
+      "algorithm": "diagonal",
+      "glitch": "stripe",
+      "blendMode": "dif",
+      "noiseMode": "directional",
+      "blockSize": 32,
+      "grit": 0,
+      "noiseFreq": "0.20",
+      "noiseSpeed": "0.50",
+      "displacement": 19,
+      "faceDriver": false
+    },
+    {
+      "index": 2,
+      "enabled": true,
+      "algorithm": "reaction",
+      "glitch": "tear",
+      "blendMode": "scr",
+      "noiseMode": "evolutive",
+      "blockSize": 4,
+      "grit": 42,
+      "noiseFreq": "0.18",
+      "noiseSpeed": "1.00",
+      "displacement": 9,
+      "faceDriver": true
+    },
+    {
+      "index": 3,
+      "enabled": true,
+      "algorithm": "lenia",
+      "glitch": "tear",
+      "blendMode": "lgt",
+      "noiseMode": "evolutive",
+      "blockSize": 8,
+      "grit": 100,
+      "noiseFreq": "0.16",
+      "noiseSpeed": "1.50",
+      "displacement": 20,
+      "faceDriver": false
+    }
+  ]
+}

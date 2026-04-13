@@ -1,0 +1,423 @@
+
+<style>
+.pg{padding:18px 14px;background:#000;font-family:'Courier New',monospace;min-height:540px;}
+.pg-hdr{text-align:center;margin-bottom:7px;}
+.pg-title{font-size:8px;letter-spacing:5px;color:#282828;text-transform:uppercase;}
+.pg-sub{font-size:7px;color:#1a1a1a;margin-top:2px;letter-spacing:1px;}
+.set-row{display:flex;flex-wrap:wrap;gap:8px 14px;justify-content:center;align-items:center;margin:0 0 8px;padding:6px 8px;border:0.5px solid #111;}
+.set-item{display:flex;align-items:center;gap:5px;}
+.set-item label{font-size:7px;color:#333;letter-spacing:1px;white-space:nowrap;}
+.set-item b{font-size:7px;color:#555;min-width:22px;display:inline-block;}
+.set-item input[type=range]{width:60px;height:3px;appearance:none;background:#1a1a1a;outline:none;cursor:pointer;}
+.set-item input[type=range]::-webkit-slider-thumb{appearance:none;width:8px;height:8px;background:#444;border-radius:0;}
+.face-strip{display:flex;gap:3px;justify-content:center;margin:0 0 8px;align-items:center;}
+.face-strip span{font-size:7px;color:#222;margin-right:4px;letter-spacing:1px;}
+.fthumb{width:28px;height:28px;image-rendering:pixelated;cursor:pointer;opacity:.35;border:0.5px solid #1a1a1a;transition:opacity .15s;}
+.fthumb:hover{opacity:.65;}
+.fthumb.on{opacity:1;border-color:#555;}
+.ca-row{display:flex;gap:3px;justify-content:center;align-items:center;margin:0 0 9px;flex-wrap:wrap;}
+.ca-lbl{font-size:7px;color:#222;letter-spacing:1px;margin-right:2px;}
+.ca-btn{background:none;border:0.5px solid #161616;color:#222;padding:2px 7px;font:7px 'Courier New',monospace;letter-spacing:1px;cursor:pointer;transition:all .1s;}
+.ca-btn:hover{border-color:#444;color:#555;}
+.ca-btn.on{background:#080808;border-color:#555;color:#aaa;}
+.pg-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;max-width:580px;margin:0 auto;}
+.pg-cell{display:flex;flex-direction:column;align-items:center;}
+.pg-cv{display:block;image-rendering:pixelated;image-rendering:crisp-edges;}
+.pg-label{margin-top:4px;text-align:center;}
+.pg-id{font-size:8px;color:#2a2a2a;letter-spacing:2px;}
+.pg-tr{font-size:7px;color:#1a1a1a;letter-spacing:1px;margin-top:1px;}
+.pg-nav{display:flex;justify-content:space-between;align-items:center;max-width:580px;margin:9px auto 0;}
+.pg-btn{background:none;border:0.5px solid #161616;color:#2a2a2a;padding:4px 12px;font:7px 'Courier New',monospace;letter-spacing:2px;cursor:pointer;transition:all .2s;}
+.pg-btn:hover{border-color:#444;color:#555;}
+.pg-btn:disabled{opacity:.1;cursor:default;}
+.pg-info{font-size:7px;color:#1a1a1a;letter-spacing:2px;}
+</style>
+<div class="pg">
+<h2 class="sr-only">TF ZK Destruction — CA faces from ZK biometric data with pixelation, scan displacement, grain, and grit settings</h2>
+<div class="pg-hdr">
+  <div class="pg-title">TF ░ ZK DESTRUCTION ░</div>
+  <div class="pg-sub">23 faces · 9 methods · CA grown · integer arithmetic</div>
+</div>
+
+<div class="set-row">
+  <div class="set-item"><label>pixel</label>
+    <input type="range" id="s-px" min="0" max="3" step="1" value="0">
+    <b id="v-px">1×</b></div>
+  <div class="set-item"><label>scan</label>
+    <input type="range" id="s-sc" min="0" max="100" value="35">
+    <b id="v-sc">35</b></div>
+  <div class="set-item"><label>grain</label>
+    <input type="range" id="s-gr" min="0" max="80" value="32">
+    <b id="v-gr">32</b></div>
+  <div class="set-item"><label>grit</label>
+    <input type="range" id="s-gt" min="0" max="20" value="10">
+    <b id="v-gt">1.0</b></div>
+  <div class="set-item"><label>wave</label>
+    <input type="range" id="s-wv" min="1" max="4" step="1" value="2">
+    <b id="v-wv">2</b></div>
+  <div class="set-item"><label>ca spd</label>
+    <input type="range" id="s-cs" min="1" max="8" step="1" value="3">
+    <b id="v-cs">3</b></div>
+</div>
+
+<div class="face-strip">
+  <span>zk faces →</span>
+  <canvas id="ft0" class="fthumb" width="16" height="16" title="ZK-001"></canvas>
+  <canvas id="ft1" class="fthumb" width="16" height="16" title="ZK-002"></canvas>
+  <canvas id="ft2" class="fthumb" width="16" height="16" title="ZK-003"></canvas>
+  <canvas id="ft3" class="fthumb" width="16" height="16" title="ZK-004"></canvas>
+</div>
+
+<div class="ca-row">
+  <span class="ca-lbl">rule</span>
+  <button class="ca-btn on" data-ca="erode">erode</button>
+  <button class="ca-btn" data-ca="life">conway</button>
+  <button class="ca-btn" data-ca="maze">maze</button>
+  <button class="ca-btn" data-ca="dn">day·night</button>
+  <button class="ca-btn" data-ca="seeds">seeds</button>
+  <button class="ca-btn" data-ca="34">3·4</button>
+</div>
+
+<div class="pg-nav" style="margin-bottom:9px;margin-top:0;">
+  <button class="pg-btn" id="p1">← prev</button>
+  <span class="pg-info" id="inf1"></span>
+  <button class="pg-btn" id="n1">next →</button>
+</div>
+<div class="pg-grid" id="grid"></div>
+<div class="pg-nav">
+  <button class="pg-btn" id="p2">← prev</button>
+  <span class="pg-info" id="inf2"></span>
+  <button class="pg-btn" id="n2">next →</button>
+</div>
+</div>
+
+<script>
+const TOTAL=12,PPP=4,GW=16,GH=16,PX=16,CW=256,CH=256;
+const WAVE_N=400,MICRO_N=28,NANO_N=22,W_N=50,CA_BASE=3;
+let pg=0,caMode='erode';
+let G_PIX=1,G_SCAN=35,G_GRAIN=32,G_GRIT=1.0,G_WAVE=2,G_CAS=CA_BASE;
+const stops={},wstates={};
+
+// ── ZK FACE DATA (from destruction.html) ──────────────────────────────────────
+const ZK_B64=[
+  // ZK Face 001 — destruction.html
+  'iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAIAAADYYG7QAAABTUlEQVRYCc3BCYrDQBAEwcz/P7oWgVjLpueyRuAImRM2kDGZE/aQAZkT9pABmRC2kQGZELaRAZkQtpEBmRO2kR6ZE7aRHpkTtpEemRO2kR6ZE7aRHpkQkE/he9Ik08JJXsI3pEnmhIIQalILB2mSCWEPOQSkSW4Iy+QQkJqMhIO8CQPyKZyEgNSkK9wib8KL1KQrPEVq0hWeIjXpCg+SgnSFB0lBRsJTpCAj4SlSkJGwmRBO8kkmhCY5hJMQBoRwkILMCQWphSYhHKQmc8IeQjhITZoCchFukVNAmqQpIBfhFvkXkAZpCshFuEsISI+sCBtIj7QF5E04yUCoyYCsCCchFOQlFGRAVoRbZEwGAnIRTnIIC2RMBgJyEV6kEGoyRcYCchGWySxZF5bJLPlKWCAL5FthTJbJDaFJviQ7hJPcJT9Gfoz8GPkx8mP+AAUzSzEw/N3fAAAAAElFTkSuQmCC',
+  // ZK Face 002
+  'iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAIAAADYYG7QAAABO0lEQVRYCc3BAY6CQBQFwe77H/pthmAU+IMrwmCV/Bj5MfJj5AvhSc4h/xM+JkdIRzifvCeVcBV5QyrhKvKGVMKFZI9shGvJHtkI15I9shEuJ12yES4nXbIRLiddshQGkZoshTUhnE9qshQWZC2cQ2ryIqxJIZxAavIiFKQWviUFeRGeZE84gRTkRUA+EL4iBflOOE4KUgoYkH8IR0hNVkJjaISAdASkCR+TmjyExoBhJrvCcVKTh9AYGkMjldBIE46QLpmEJ0NjiMhKmMksfEy6ZBIWDDNZCTNpwhHSJZOwZliJnEW6ZBKGki6BMJp0CYQbSE0g3EBqAuEGUhMI95CC4TZSMNxGCoZ7SE0g3EBqAuEGUhMIo0mXQBhNumQShpIumYShpEsmYSjpkkkYSrrkIYwjXfIQhpLaHxANSjGdrBmtAAAAAElFTkSuQmCC',
+  // ZK Face 003 — reduced variant
+  'iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAIAAADYYG7QAAAAbUlEQVRYCc3BMRHAMADDMOn/o909QJYsFSkxEiMxEiMxEiMxEiMxEiMxEiMxEiMxEiMx8qtxcrQ4WhwtjhZHi6PF0eJocbQ4WhwtjhZHi6PF0eJocbQ4WhwtjhZHi6PF0eJocbQ4WhwtjhZHi+Od44Xj7gNvfSESOpEkyAAAAABJRU5ErkJggg==',
+  // ZK Face 004 — reduced variant
+  'iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAIAAADYYG7QAAAAc0lEQVRYCc3BsQ3AMADDMOn/o909QJYsFSkxEiMxEiMxEiMxEiMxEiMxEiMxEiMxEiMx8qtxcrQ4WhwtjhZHi6PF0eJocbQ4WhwtjhZHi6PF0eJocbQ4WhwtjhZHi6PF0eJocbQ4WhwtjhZHi+Od44Xj7gNvfSESOpEkyAAAAABJRU5ErkJggg==',
+];
+
+// ── PERLIN ────────────────────────────────────────────────────────────────────
+const PERM=(()=>{const p=Array.from({length:256},(_,i)=>i);let s=0xABCDEF12;const r=()=>{s^=s<<13;s^=s>>>17;s^=s<<5;return(s>>>0)/4294967296;};for(let i=255;i>0;i--){const j=(r()*(i+1))|0;[p[i],p[j]]=[p[j],p[i]];}return new Uint8Array([...p,...p]);})();
+const G2=[[1,1],[-1,1],[1,-1],[-1,-1],[1,0],[-1,0],[0,1],[0,-1]];
+function perlin2(x,y){const xi=Math.floor(x)&255,yi=Math.floor(y)&255,xf=x-Math.floor(x),yf=y-Math.floor(y);const fd=t=>t*t*t*(t*(t*6-15)+10),u=fd(xf),v=fd(yf);const dot=(gi,dx,dy)=>{const g=G2[gi%8];return g[0]*dx+g[1]*dy;};const l=(a,b,t)=>a+(b-a)*t;return l(l(dot(PERM[xi+PERM[yi]],xf,yf),dot(PERM[xi+1+PERM[yi]],xf-1,yf),u),l(dot(PERM[xi+PERM[yi+1]],xf,yf-1),dot(PERM[xi+1+PERM[yi+1]],xf-1,yf-1),u),v);}
+function pn(x,y,s){const o=s||0;return perlin2(x+o,y+o)*0.65+perlin2((x+o)*2.17,(y+o)*2.17)*0.35;}
+
+// ── ENTITY FROM IMAGE ─────────────────────────────────────────────────────────
+function buildEntityFromPixels(id, imgData, iw, ih) {
+  const cells=Array.from({length:16},()=>new Array(16).fill(-1));
+  const rawB=new Float32Array(256);
+  for(let by=0;by<16;by++) for(let bx=0;bx<16;bx++){
+    let sum=0,cnt=0;
+    const x0=Math.floor(bx*iw/16),x1=Math.ceil((bx+1)*iw/16);
+    const y0=Math.floor(by*ih/16),y1=Math.ceil((by+1)*ih/16);
+    for(let py=y0;py<y1&&py<ih;py++) for(let px=x0;px<x1&&px<iw;px++){
+      const i=(py*iw+px)*4;
+      if(imgData[i+3]>10){sum+=(imgData[i]+imgData[i+1]+imgData[i+2])/3;cnt++;}
+    }
+    if(cnt>0){rawB[by*16+bx]=sum/cnt;if(rawB[by*16+bx]>10)cells[by][bx]=1;}
+  }
+  // Ensure at least some valid blocks
+  let total=0;for(let i=0;i<256;i++) if(cells[Math.floor(i/16)][i%16]!=-1)total++;
+  if(total<16){for(let by=0;by<16;by++) for(let bx=0;bx<16;bx++) if(rawB[by*16+bx]>5)cells[by][bx]=1;}
+  const shimmer=Array.from({length:256},(_,i)=>{const br=rawB[i]/255;return{sp:.4+br*5,ph:Math.random()*Math.PI*2,amp:.015+br*.28};});
+  const borderMap=new Uint8Array(256),normalMap=new Float32Array(512);
+  for(let by=0;by<16;by++) for(let bx=0;bx<16;bx++){
+    if(cells[by][bx]===-1)continue;const ok=(x,y)=>x>=0&&x<16&&y>=0&&y<16&&cells[y][x]!==-1;
+    let nx=0,ny=0;
+    if(!ok(bx-1,by)){borderMap[by*16+bx]=1;nx+=1;}if(!ok(bx+1,by)){borderMap[by*16+bx]=1;nx-=1;}
+    if(!ok(bx,by-1)){borderMap[by*16+bx]=1;ny+=1;}if(!ok(bx,by+1)){borderMap[by*16+bx]=1;ny-=1;}
+    const l=Math.sqrt(nx*nx+ny*ny);if(l>0){normalMap[(by*16+bx)*2]=nx/l;normalMap[(by*16+bx)*2+1]=ny/l;}
+  }
+  const validBlocks=[];for(let by=0;by<16;by++) for(let bx=0;bx<16;bx++) if(cells[by][bx]!==-1)validBlocks.push([bx,by]);
+  return{cells,rawB,shimmer,borderMap,normalMap,validBlocks,bwLevels:null,id,traits:['zk-face','biometric','destruction']};
+}
+
+function loadZKEntity(id,b64){
+  return new Promise(res=>{
+    const img=new Image();
+    img.onload=()=>{
+      const tmp=document.createElement('canvas');tmp.width=img.width;tmp.height=img.height;
+      tmp.getContext('2d').drawImage(img,0,0);
+      const d=tmp.getContext('2d').getImageData(0,0,img.width,img.height);
+      const ent=buildEntityFromPixels(id,d.data,img.width,img.height);
+      // Draw thumbnail
+      const ft=document.getElementById('ft'+id);
+      if(ft){const ftx=ft.getContext('2d');ftx.drawImage(tmp,0,0,16,16);}
+      res(ent);
+    };
+    img.onerror=()=>res(buildEntity(id));
+    img.src='data:image/png;base64,'+b64;
+  });
+}
+
+// ── PROCEDURAL ENTITY ─────────────────────────────────────────────────────────
+function xr(s){let v=(s^0xCAFEF00D)>>>0;return()=>{v^=v<<13;v^=v>>>17;v^=v<<5;return(v>>>0)/4294967296;}}
+const MASKS={oval:['0000011111110000','0000111111111000','0001111111111100','0011111111111110','0111111111111111','0111111111111111','1111111111111111','1111111111111111','1111111111111111','1111111111111111','0111111111111111','0111111111111111','0011111111111110','0001111111111100','0000111111111000','0000001111100000'],tall:['0000001111000000','0000011111100000','0000111111110000','0001111111111000','0001111111111000','0011111111111100','0011111111111100','0011111111111100','0011111111111100','0011111111111100','0011111111111100','0001111111111000','0001111111111000','0000111111110000','0000011111100000','0000001111000000'],wide:['0000000000000000','0001111111111000','0011111111111100','0111111111111110','1111111111111111','1111111111111111','1111111111111111','1111111111111111','1111111111111111','1111111111111111','0111111111111110','0011111111111100','0001111111111000','0000011111100000','0000000000000000','0000000000000000'],tri:['0000000110000000','0000001111000000','0000011111100000','0000111111110000','0001111111111000','0001111111111000','0011111111111100','0011111111111100','0111111111111110','0111111111111110','1111111111111111','1111111111111111','1111111111111111','1111111111111111','1111111111111111','0111111111111110'],hex:['0000011111110000','0001111111111100','0011111111111110','0111111111111111','0111111111111111','1111111111111111','1111111111111111','1111111111111111','1111111111111111','1111111111111111','1111111111111111','0111111111111111','0111111111111110','0011111111111100','0001111111111000','0000011111100000'],blob:['0000111111110000','0011111111111100','0111111111111110','1111111111111111','1111111111111111','1111111111111111','0111111111111111','0011111111111110','0011111111111111','0111111111111111','1111111111111111','1111111110111110','0111111111111110','0011111111111100','0000111111110000','0000001111000000']};
+const MASK_KEYS=Object.keys(MASKS);
+const BW_LEVELS=[[0,72,28,240,255,90,200,18,255],[0,90,35,220,255,75,185,22,255],[0,60,20,245,255,80,210,12,255],[0,110,50,200,248,95,175,30,255],[0,80,30,235,255,88,195,16,255],[0,95,40,215,250,70,180,25,255],[0,65,22,238,255,82,205,14,255],[0,100,45,225,252,85,190,20,255],[0,75,25,242,255,78,208,15,255],[0,85,32,230,253,92,198,18,255],[0,55,18,248,255,72,215,10,255],[0,105,48,210,250,98,172,28,255]];
+const MORPH_N=['xenomorph','archon','formless','liminal','deep-form','spore'],BODY_N=['carapace','chitinous','membrane','crystalline','gelatinous','fibrous'],EYE_N=['compound','stalked','ocellar','pit-organ','biolum','void'],MOUTH_N=['mandible','proboscis','slit','vents','absent','radula'];
+function buildEntity(id){
+  const r=xr(id*0xDEADF00D+0xBEEF1234);const maskKey=MASK_KEYS[Math.floor(r()*MASK_KEYS.length)];const mask=MASKS[maskKey].map(s=>s.split('').map(Number));const cells=Array.from({length:16},()=>new Array(16).fill(-1));
+  for(let y=0;y<16;y++) for(let x=0;x<16;x++) if(mask[y][x]) cells[y][x]=1;
+  const cr=1+Math.floor(r()*5),ca=r()<0.4;for(let y=0;y<cr;y++) for(let x=0;x<16;x++) if(mask[y][x]){if(r()<(ca?(x<8?0.7:0.4):0.75))cells[y][x]=2;}
+  const pt=Math.floor(r()*4);
+  if(pt===0){const ax=3+Math.floor(r()*2),bx=12-Math.floor(r()*2);for(let y=0;y<3;y++){cells[y][ax]=2;cells[y][bx]=2;}}else if(pt===1){const cx=6+Math.floor(r()*4);cells[0][cx]=2;if(cx>0)cells[0][cx-1]=2;}else if(pt===2){for(let x=2;x<14;x+=2+Math.floor(r()*2))cells[0][x]=2;}
+  const ec=Math.floor(r()*6),er=cr+1+Math.floor(r()*2);
+  const pe=(y,x,big)=>{if(y>=0&&y<16&&x>=0&&x<16&&mask[y]&&mask[y][x]){cells[y][x]=3;if(big){if(x+1<16&&mask[y][x+1])cells[y][x+1]=3;if(y+1<16&&mask[y+1]?.[x])cells[y+1][x]=3;if(x+1<16&&y+1<16&&mask[y+1]?.[x+1])cells[y+1][x+1]=3;cells[y][x]=4;}}};
+  if(ec===0){pe(er,7,true);pe(er,8,false);}else if(ec===1){pe(er,4,false);pe(er,7,true);pe(er,11,false);}else if(ec===2){pe(er,3,false);pe(er,6,true);pe(er+1,10,false);pe(er,13,false);}else if(ec===3){pe(er,3,true);pe(er,10,true);}else if(ec===4){pe(er,7,false);pe(er+2,7,true);pe(er+4,7,false);}else{for(let e=0;e<4+Math.floor(r()*3);e++)pe(cr+Math.floor(r()*7),2+Math.floor(r()*12),false);}
+  const mt=Math.floor(r()*6),mr=er+3+Math.floor(r()*2);
+  if(mt===0&&mr<15){for(let d=0;d<3;d++){if(mask[mr+d]){if(4+d<16&&mask[mr+d][4+d])cells[mr+d][4+d]=5;if(11-d>=0&&mask[mr+d][11-d])cells[mr+d][11-d]=5;}}}
+  else if(mt===1&&mr<15){for(let d=0;d<3;d++)if(mr+d<16&&mask[mr+d]&&mask[mr+d][7])cells[mr+d][7]=5;}
+  else if(mt===2&&mr<15){for(let x=5;x<=10;x++)if(mask[mr]&&mask[mr][x])cells[mr][x]=5;}
+  else if(mt===3&&mr<15){for(let x=4;x<12;x+=2)if(mask[mr]&&mask[mr][x])cells[mr][x]=5;if(mr+1<16)for(let x=5;x<12;x+=2)if(mask[mr+1]&&mask[mr+1][x])cells[mr+1][x]=5;}
+  else if(mt===5&&mr<15){const cx=7,cy=mr;[[0,-1],[0,1],[-1,0],[1,0],[-1,-1],[1,1],[-1,1],[1,-1]].forEach(([dx,dy])=>{const nx=cx+dx,ny=cy+dy;if(ny>=0&&ny<16&&nx>=0&&nx<16&&mask[ny]&&mask[ny][nx])cells[ny][nx]=5;});if(mask[cy]&&mask[cy][cx])cells[cy][cx]=6;}
+  const np=1+Math.floor(r()*4);for(let p=0;p<np;p++){const py2=cr+Math.floor(r()*(16-cr-1)),px2=1+Math.floor(r()*14);if(mask[py2]&&mask[py2][px2]&&cells[py2][px2]===1){cells[py2][px2]=6;if(r()<0.5&&px2+1<16&&mask[py2][px2+1]&&cells[py2][px2+1]===1)cells[py2][px2+1]=6;}}
+  for(let y=cr;y<16;y++) for(let x=0;x<16;x++) if(cells[y][x]===1&&r()<0.12)cells[y][x]=7;
+  const shimmer=Array.from({length:256},(_,i)=>{const cy=i>>4,cx=i&15;const ct=cells[cy][cx];const hot=ct===3||ct===4||ct===6;return{sp:hot?2+r()*5:0.2+r()*1.2,ph:r()*Math.PI*2,amp:hot?0.18+r()*0.28:0.01+r()*0.05};});
+  const borderMap=new Uint8Array(256),normalMap=new Float32Array(512);
+  for(let by=0;by<16;by++) for(let bx=0;bx<16;bx++){if(cells[by][bx]===-1)continue;const ok=(x,y)=>x>=0&&x<16&&y>=0&&y<16&&cells[y][x]!==-1;let nx=0,ny=0;if(!ok(bx-1,by)){borderMap[by*16+bx]=1;nx+=1;}if(!ok(bx+1,by)){borderMap[by*16+bx]=1;nx-=1;}if(!ok(bx,by-1)){borderMap[by*16+bx]=1;ny+=1;}if(!ok(bx,by+1)){borderMap[by*16+bx]=1;ny-=1;}const l=Math.sqrt(nx*nx+ny*ny);if(l>0){normalMap[(by*16+bx)*2]=nx/l;normalMap[(by*16+bx)*2+1]=ny/l;}}
+  const validBlocks=[];for(let by=0;by<16;by++) for(let bx=0;bx<16;bx++) if(cells[by][bx]!==-1)validBlocks.push([bx,by]);
+  return{cells,rawB:null,shimmer,borderMap,normalMap,validBlocks,bwLevels:BW_LEVELS[id%BW_LEVELS.length],id,traits:[MORPH_N[Math.floor(r()*MORPH_N.length)],BODY_N[Math.floor(r()*BODY_N.length)],EYE_N[Math.floor(r()*EYE_N.length)],MOUTH_N[mt]]};
+}
+
+// ── CA RULES ──────────────────────────────────────────────────────────────────
+const CA_RULES={erode:(a,n)=>a?(n>=1&&n<=6):n===3,life:(a,n)=>a?(n===2||n===3):n===3,maze:(a,n)=>a?(n>=1&&n<=5):n===3,dn:(a,n)=>a?[3,4,6,7,8].includes(n):[3,6,7,8].includes(n),seeds:(a,n)=>!a&&n===2,'34':(a,n)=>a?(n===3||n===4):(n===3||n===4)};
+
+// ── FULL CA ────────────────────────────────────────────────────────────────────
+function initFullCA(entity){
+  const ca=new Uint8Array(CW*CH),nxt=new Uint8Array(CW*CH);
+  const{cells,bwLevels,rawB}=entity;
+  for(let by=0;by<16;by++) for(let bx=0;bx<16;bx++){
+    const ct=cells[by][bx];if(ct===-1)continue;
+    const norm=(rawB?rawB[by*16+bx]:(bwLevels?.[ct]||0))/255;
+    for(let dy=0;dy<PX;dy++) for(let dx=0;dx<PX;dx++) if(Math.random()<norm*0.5) ca[(by*PX+dy)*CW+(bx*PX+dx)]=1;
+  }
+  return{ca,nxt};
+}
+function getBrightness(entity,by,bx){const{rawB,bwLevels,cells}=entity;return rawB?rawB[by*16+bx]:(bwLevels?.[cells[by][bx]]||0);}
+function seedCA(ca,entity,time){
+  const{cells,shimmer}=entity;
+  for(let by=0;by<16;by++) for(let bx=0;bx<16;bx++){
+    if(cells[by][bx]===-1)continue;
+    const norm=getBrightness(entity,by,bx)/255;if(norm<0.03)continue;
+    const sh=shimmer[by*16+bx];
+    if(Math.random()>norm*0.55*(1+sh.sp*.08))continue;
+    const px=(bx*PX+(Math.random()*PX)|0),py=(by*PX+(Math.random()*PX)|0);
+    ca[py*CW+px]=1;
+    if(norm>0.6){if(px+1<CW)ca[py*CW+px+1]=1;if(py+1<CH)ca[(py+1)*CW+px]=1;}
+    if(norm>0.85){if(px-1>=0)ca[py*CW+px-1]=1;if(py-1>=0)ca[(py-1)*CW+px]=1;}
+  }
+}
+function stepCA(ca,nxt,entity,rule){
+  const{cells}=entity;
+  for(let y=0;y<CH;y++){const by=y>>4;
+    for(let x=0;x<CW;x++){
+      if(cells[by]?.[x>>4]===-1){nxt[y*CW+x]=0;continue;}
+      const a=ca[y*CW+x],ym=y>0?y-1:0,yp=y<255?y+1:255,xm=x>0?x-1:0,xp=x<255?x+1:255;
+      const n=ca[ym*CW+xm]+ca[ym*CW+x]+ca[ym*CW+xp]+ca[y*CW+xm]+ca[y*CW+xp]+ca[yp*CW+xm]+ca[yp*CW+x]+ca[yp*CW+xp];
+      nxt[y*CW+x]=rule(a===1,n)?1:0;
+    }
+  }
+  ca.set(nxt);
+}
+
+// ── PARTICLES ─────────────────────────────────────────────────────────────────
+function inFace(e,px,py){const bx=(px/PX)|0,by=(py/PX)|0;return bx>=0&&bx<GW&&by>=0&&by<GH&&e.cells[by][bx]!==-1;}
+function spawnP(e){const[bx,by]=e.validBlocks[Math.floor(Math.random()*e.validBlocks.length)];return{x:bx*PX+Math.random()*PX,y:by*PX+Math.random()*PX,vx:(Math.random()-.5)*.9,vy:(Math.random()-.5)*.9,phase:Math.random()*Math.PI*2,wsp:.5+Math.random()*2,br:.5};}
+function reflP(e,p,time,turb){const bx2=(p.x/PX)|0,by2=(p.y/PX)|0,idx=by2*16+bx2;const nm=e.normalMap,nx=nm[idx*2],ny=nm[idx*2+1];if(nx||ny){const d=p.vx*nx+p.vy*ny;p.vx=(p.vx-2*d*nx)*.68;p.vy=(p.vy-2*d*ny)*.68;}else{p.vx*=-.55;p.vy*=-.55;}const ts=pn(p.x*turb+time*.22,p.y*turb-time*.18)*Math.PI*2;p.vx+=Math.cos(ts)*.28;p.vy+=Math.sin(ts)*.28;if(!inFace(e,p.x+p.vx,p.y+p.vy)){p.vx+=(128-p.x)*.008;p.vy+=(128-p.y)*.008;}}
+function stepP(e,pts,freq,ts1,ts2,drag,maxs,turb,wf,time,seed){
+  for(const p of pts){
+    const fx=p.x*freq+time*ts1,fy=p.y*freq+time*ts2;
+    const a1=pn(fx,fy,seed)*Math.PI*4,a2=pn(fx*2.6-time*.4,fy*2.6+time*.3,seed+100)*Math.PI*2;
+    p.vx=p.vx*drag+(Math.cos(a1)*wf+Math.cos(a2)*(wf*.4))*(1-drag);p.vy=p.vy*drag+(Math.sin(a1)*wf+Math.sin(a2)*(wf*.4))*(1-drag);
+    const spd=Math.sqrt(p.vx*p.vx+p.vy*p.vy);if(spd>maxs){p.vx*=maxs/spd;p.vy*=maxs/spd;}
+    const nx=p.x+p.vx,ny=p.y+p.vy;
+    if(inFace(e,nx,ny)){p.x=nx;p.y=ny;}else reflP(e,p,time,turb);
+    p.br=.2+.8*(Math.sin(p.phase+time*p.wsp)*.5+.5);
+  }
+}
+
+// ── WALKERS ───────────────────────────────────────────────────────────────────
+const D8=[[1,0],[1,1],[0,1],[-1,1],[-1,0],[-1,-1],[0,-1],[1,-1]];
+function mkW(x,y,e){return{x:Math.max(0,Math.min(15,x|0)),y:Math.max(0,Math.min(15,y|0)),energy:Math.min(1,Math.max(.15,.3+Math.random()*.4)),age:0};}
+function initState(entity){
+  const{ca,nxt}=initFullCA(entity);
+  const map=[],trails=[];
+  const{cells,bwLevels,rawB}=entity;
+  for(let by=0;by<16;by++){map.push([]);trails.push([]);
+    for(let bx=0;bx<16;bx++){
+      const norm=getBrightness(entity,by,bx)/255;
+      const r=xr((bx*73+by*137+entity.id*31337)*0xDEADBEEF);
+      let cnt=0;if(norm>.65)cnt=2+Math.floor(r()*2);else if(norm>.35)cnt=1+Math.floor(r()*2);else if(norm>.15)cnt=r()<.35?1:0;
+      map[by].push(Array.from({length:Math.min(cnt,3)},()=>mkW(2+Math.floor(r()*12),2+Math.floor(r()*12),entity)));
+      trails[by].push(new Float32Array(256));
+    }
+  }
+  return{ca,nxt,map,trails,frame:0,
+    wave:Array.from({length:WAVE_N},()=>spawnP(entity)),
+    micro:Array.from({length:MICRO_N},()=>spawnP(entity)),
+    nano:Array.from({length:NANO_N},()=>spawnP(entity))};
+}
+
+// ── GLITCH PATTERNS ───────────────────────────────────────────────────────────
+const GLYPHS=[(dx,dy)=>(dx&1)===0,(dx,dy)=>(dy&1)===0,(dx,dy)=>((dx+dy)&1)===0,(dx,dy)=>dx>=5&&dx<=10&&dy>=5&&dy<=10,(dx,dy)=>dx<3||dx>12||dy<3||dy>12,(dx,dy)=>dx>dy,(dx,dy)=>((dx>>1)&1)===((dy>>1)&1),(dx,dy)=>Math.abs(dx-7)+Math.abs(dy-7)<6];
+const rowTmp=new Int32Array(CW);
+function applyGlitch(buf,time,entity){
+  const gi=Math.max(.15,pn(time*.9,time*.4)*1.7+.3)*G_GRIT;
+  // A. Scanline displacement
+  for(let y=0;y<CH;y++){const dn=pn(y*.07+time*5.2,time*3.4+y*.02);if(dn>.36){const shift=(Math.floor(dn*G_SCAN*2*gi)-G_SCAN)|0;if(!shift)continue;for(let x=0;x<CW;x++) rowTmp[x]=buf[(y*CW+x)<<2];for(let x=0;x<CW;x++){const sx=((x-shift)%CW+CW)%CW;const i=(y*CW+x)<<2;buf[i]=buf[i+1]=buf[i+2]=rowTmp[sx];}}}
+  // B. Glyph cycling
+  for(let by=0;by<GH;by++) for(let bx=0;bx<GW;bx++){
+    if(entity.cells[by][bx]===-1)continue;const sh=entity.shimmer[by*GW+bx];
+    const noise=pn(bx*1.2+time*sh.sp*.9,by*1.2+time*sh.sp*.65);if(noise<.28)continue;
+    const pat=GLYPHS[(Math.floor(time*sh.sp*4+noise*16))&7];
+    const bright=Math.min(255,50+Math.floor(noise*190*gi));
+    for(let dy=0;dy<PX;dy++) for(let dx=0;dx<PX;dx++){if(!pat(dx,dy))continue;const i=((by*PX+dy)*CW+(bx*PX+dx))<<2;buf[i]=buf[i+1]=buf[i+2]=Math.min(255,buf[i]+bright);}
+  }
+  // C. Pixel sort
+  for(let y=2;y<CH-2;y+=3){if(pn(y*.12,time*5.5+y*.03)<.44)continue;let lo=CW,hi=-1;for(let x=0;x<CW;x++) if(entity.cells[y>>4]?.[x>>4]!==-1){if(x<lo)lo=x;if(x>hi)hi=x;}if(hi<lo)continue;const seg=[];for(let x=lo;x<=hi;x++) seg.push(buf[(y*CW+x)<<2]);seg.sort((a,b)=>a-b);for(let x=lo;x<=hi;x++){const i=(y*CW+x)<<2;buf[i]=buf[i+1]=buf[i+2]=seg[x-lo];}}
+  // D. Bit-depth crush
+  for(let y=0;y<CH;y+=2){if(pn(y*.18,time*4.2+y*.04)<.50)continue;const lv=pn(y*.1,time*3)>.5?32:64;for(let x=0;x<CW;x++){const i=(y*CW+x)<<2;buf[i]=buf[i+1]=buf[i+2]=Math.floor(buf[i]/lv)*lv;}}
+  // E. Run corruption
+  const nR=Math.floor(gi*5+2);for(let rr=0;rr<nR;rr++){const ry=Math.floor(pn(time*13.5+rr,rr*3.7)*.5+.5)*CH|0,rx=Math.floor(pn(rr*7.1,time*8.3)*.5+.5)*CW|0,len=3+Math.floor(pn(rr,time*5)*.5+.5)*22|0,v=Math.random()>.5?255:0;for(let dx=0;dx<len&&rx+dx<CW;dx++){const i=(ry*CW+(rx+dx))<<2;buf[i]=buf[i+1]=buf[i+2]=v;}}
+  // F. Block flash
+  if(pn(time*6.3,time*4.1)>.58){const fbx=Math.floor(pn(time*11,.5)*.5+.5)*16|0,fby=Math.floor(pn(.5,time*9.7)*.5+.5)*16|0;if(entity.cells[fby]?.[fbx]!==-1){const inv=pn(time*7.2,2.1)>.68;for(let dy=0;dy<PX;dy++) for(let dx=0;dx<PX;dx++){const i=((fby*PX+dy)*CW+(fbx*PX+dx))<<2;buf[i]=buf[i+1]=buf[i+2]=inv?255-buf[i]:255;}}}
+  // G. Spike bands
+  for(let y=0;y<CH;y+=2){const bn=pn(y*.25,time*9.5+y*.06);if(bn>.58){const m=1.9+bn*1.3;for(let x=0;x<CW;x++){const i=(y*CW+x)<<2;buf[i]=buf[i+1]=buf[i+2]=Math.min(255,buf[i]*m)|0;}}}
+  // H. Static noise
+  const nn=Math.floor(gi*130+20);for(let n=0;n<nn;n++){const px2=Math.floor(Math.random()*CW),py2=Math.floor(Math.random()*CH);if(entity.cells[py2>>4]?.[px2>>4]===-1)continue;const i=(py2*CW+px2)<<2;buf[i]=buf[i+1]=buf[i+2]=Math.random()>.4?225:0;}
+}
+function applyPixelation(buf,level){
+  if(level<=1)return;
+  for(let y=0;y<CH;y+=level) for(let x=0;x<CW;x+=level){
+    let s=0,c=0;for(let dy=0;dy<level&&y+dy<CH;dy++) for(let dx=0;dx<level&&x+dx<CW;dx++){s+=buf[((y+dy)*CW+(x+dx))*4];c++;}
+    const avg=(s/c)|0;
+    for(let dy=0;dy<level&&y+dy<CH;dy++) for(let dx=0;dx<level&&x+dx<CW;dx++){const i=((y+dy)*CW+(x+dx))*4;buf[i]=buf[i+1]=buf[i+2]=avg;}
+  }
+}
+
+// ── RENDER ────────────────────────────────────────────────────────────────────
+function renderEntity(canvas,entity,time){
+  if(!wstates[entity.id]) wstates[entity.id]=initState(entity);
+  const st=wstates[entity.id];st.frame++;
+  seedCA(st.ca,entity,time);
+  const wn=WAVE_N*G_WAVE/2|0;
+  stepP(entity,st.wave.slice(0,wn),.0085,.1,.063,.88,2.2,.045,1.3,time,0);
+  stepP(entity,st.micro,.136,.28,.19,.82,2.5,.1,1.5,time,50);
+  stepP(entity,st.nano,2.176,.82,.55,.70,3,.35,1.8,time,130);
+  for(const p of st.wave){const cx=p.x|0,cy=p.y|0;if(cx>=0&&cx<CW&&cy>=0&&cy<CH&&p.br>.55)st.ca[cy*CW+cx]=1;}
+  // Walker tick
+  const{map,trails}=st;
+  for(let by=0;by<16;by++) for(let bx=0;bx<16;bx++){
+    const norm=getBrightness(entity,by,bx)/255;const trail=trails[by][bx];const walkers=map[by][bx];
+    for(let i=0;i<256;i++) trail[i]*=.996;
+    if(walkers.length===0&&norm>.3&&Math.random()<.0006*norm*norm)walkers.push(mkW(3+Math.floor(Math.random()*10),3+Math.floor(Math.random()*10),entity));
+    const next=[];
+    for(const w of walkers){w.energy+=norm*.017-.009;w.energy=Math.min(1,Math.max(0,w.energy));w.age++;if(w.energy<=0)continue;
+      const gx=(bx*PX+w.x)*.055+time*.038,gy=(by*PX+w.y)*.055+time*.022;
+      const snap=(((Math.round(pn(gx,gy)*Math.PI*4/(Math.PI*.25))%8)+8)%8);const[dx,dy]=D8[snap];
+      w.x=Math.max(0,Math.min(15,w.x+dx));w.y=Math.max(0,Math.min(15,w.y+dy));
+      const ti=w.y*16+w.x,mark=.28+w.energy*.65;trail[ti]=Math.min(1,trail[ti]+mark);
+      st.ca[(by*PX+w.y)*CW+(bx*PX+w.x)]=1;
+      if(w.energy>REPRO_E&&w.age>REPRO_AGE&&next.length<4){next.push(mkW(w.x+(Math.random()<.5?1:-1),w.y+(Math.random()<.5?1:-1),entity));w.energy-=.27;}
+      next.push(w);
+    }
+    map[by][bx]=next;
+  }
+  const rule=CA_RULES[caMode];if(rule&&st.frame%G_CAS===entity.id%G_CAS)stepCA(st.ca,st.nxt,entity,rule);
+  const ctx=canvas.getContext('2d');const img=ctx.createImageData(CW,CH);const buf=img.data;
+  let grn=(time*0x9E3779B9|0)^(st.frame*0x6C62272E);
+  const grain=()=>{grn=Math.imul(grn,1664525)+1013904223|0;return(grn>>>0)/4294967296-.5;};
+  const activ=new Float32Array(256);
+  for(let by=0;by<16;by++) for(let bx=0;bx<16;bx++){const tr=st.trails[by][bx];let ac=0;for(let i=0;i<256;i++)if(tr[i]>=.3)ac++;activ[by*16+bx]=ac/256;}
+  for(let py=0;py<CH;py++) for(let px=0;px<CW;px++){
+    const bx=px>>4,by=py>>4,ct=entity.cells[by]?.[bx];
+    if(ct===-1){const i=(py*CW+px)<<2;buf[i]=buf[i+1]=buf[i+2]=0;buf[i+3]=255;continue;}
+    const floor=(getBrightness(entity,by,bx)*.16+activ[by*16+bx]*28)|0;
+    const caAlive=st.ca[py*CW+px];
+    const trail=st.trails[by][bx][(py&15)*16+(px&15)]>=.3?60:0;
+    let v=caAlive?Math.min(255,185+floor):Math.min(60,floor+trail);
+    v=Math.min(255,Math.max(0,v+(grain()*G_GRAIN*.7)|0));
+    const i=(py*CW+px)<<2;buf[i]=buf[i+1]=buf[i+2]=v;buf[i+3]=255;
+  }
+  const{borderMap}=entity;
+  for(const p of st.wave.slice(0,wn)){const cx=p.x|0,cy=p.y|0;if(cx<0||cx>=CW||cy<0||cy>=CH)continue;const onB=borderMap[(cy>>4)*16+(cx>>4)]===1;const add=(Math.min(1,p.br*(onB?2.1:1))*100)|0;if(onB){for(let dy=0;dy<2;dy++)for(let dx=0;dx<2;dx++){const px2=cx+dx,py2=cy+dy;if(px2<CW&&py2<CH){const i=(py2*CW+px2)<<2;buf[i]=Math.min(255,buf[i]+add);buf[i+1]=buf[i];buf[i+2]=buf[i];}}}else{const i=(cy*CW+cx)<<2;buf[i]=Math.min(255,buf[i]+add);buf[i+1]=buf[i];buf[i+2]=buf[i];}}
+  for(const p of st.micro){const cx=p.x|0,cy=p.y|0;if(cx<0||cx>=CW||cy<0||cy>=CH)continue;const onB=borderMap[(cy>>4)*16+(cx>>4)]===1;const add=(p.br*(onB?90:52))|0;const i=(cy*CW+cx)<<2;buf[i]=Math.min(255,buf[i]+add);buf[i+1]=Math.min(255,buf[i+1]+add);buf[i+2]=Math.min(255,buf[i+2]+add);}
+  for(const p of st.nano){const cx=p.x|0,cy=p.y|0;if(cx<0||cx>=CW||cy<0||cy>=CH)continue;const onB=borderMap[(cy>>4)*16+(cx>>4)]===1;const add=(p.br*(onB?130:28))|0;const i=(cy*CW+cx)<<2;buf[i]=Math.min(255,buf[i]+add);buf[i+1]=Math.min(255,buf[i+1]+add);buf[i+2]=Math.min(255,buf[i+2]+add);}
+  applyGlitch(buf,time,entity);
+  applyPixelation(buf,G_PIX);
+  ctx.putImageData(img,0,0);
+}
+const REPRO_E=.80,REPRO_AGE=28;
+
+// ── ENTITIES INIT ─────────────────────────────────────────────────────────────
+const entities=Array.from({length:TOTAL},(_,i)=>buildEntity(i));
+// Replace first 4 with ZK faces once loaded
+Promise.all(ZK_B64.map((b64,i)=>loadZKEntity(i,b64))).then(zkEnts=>{
+  zkEnts.forEach((e,i)=>{entities[i]=e;delete wstates[i];});
+  // Update thumbnails active state
+  updateThumbs();
+  if(pg===0)render();
+});
+
+// ── GALLERY ───────────────────────────────────────────────────────────────────
+function updateThumbs(){
+  for(let i=0;i<4;i++){const ft=document.getElementById('ft'+i);if(ft)ft.classList.toggle('on',Math.floor(i/PPP)===pg);}
+}
+document.querySelector('.ca-row').addEventListener('click',e=>{
+  const btn=e.target.closest('.ca-btn');if(!btn)return;caMode=btn.dataset.ca;document.querySelectorAll('.ca-btn').forEach(b=>b.classList.toggle('on',b===btn));
+});
+document.querySelector('.face-strip').addEventListener('click',e=>{
+  const ft=e.target.closest('.fthumb');if(!ft)return;
+  const idx=parseInt(ft.id.replace('ft',''));const newPg=Math.floor(idx/PPP);
+  if(newPg!==pg){pg=newPg;render();}
+});
+
+function render(){
+  const grid=document.getElementById('grid');
+  Object.values(stops).forEach(s=>cancelAnimationFrame(s));Object.keys(stops).forEach(k=>delete stops[k]);grid.innerHTML='';
+  const start=pg*PPP,end=Math.min(start+PPP,TOTAL);
+  for(let i=start;i<end;i++){
+    const ent=entities[i];const cell=document.createElement('div');cell.className='pg-cell';
+    const canvas=document.createElement('canvas');canvas.className='pg-cv';canvas.width=CW;canvas.height=CH;canvas.style.cssText=`width:${CW}px;height:${CH}px;`;
+    const lbl=document.createElement('div');lbl.className='pg-label';
+    const pid=i<4?`ZK-${String(i+1).padStart(3,'0')}`:(`TF-${String(i).padStart(4,'0')}`);
+    lbl.innerHTML=`<div class="pg-id">${pid}</div><div class="pg-tr">${ent.traits.slice(0,2).join(' · ')}</div>`;
+    cell.appendChild(canvas);cell.appendChild(lbl);grid.appendChild(cell);
+    const loop=()=>{renderEntity(canvas,ent,Date.now()/1000);stops[i]=requestAnimationFrame(loop);};loop();
+  }
+  const pages=Math.ceil(TOTAL/PPP),inf=`${pg+1} / ${pages}`;
+  ['inf1','inf2'].forEach(id=>document.getElementById(id).textContent=inf);
+  ['p1','p2'].forEach(id=>{document.getElementById(id).disabled=pg===0;});
+  ['n1','n2'].forEach(id=>{document.getElementById(id).disabled=pg>=pages-1;});
+  updateThumbs();
+}
+function nav(d){const np=pg+d,pages=Math.ceil(TOTAL/PPP);if(np>=0&&np<pages){pg=np;render();}}
+['p1','p2'].forEach(id=>document.getElementById(id).addEventListener('click',()=>nav(-1)));
+['n1','n2'].forEach(id=>document.getElementById(id).addEventListener('click',()=>nav(1)));
+
+// ── SETTINGS ──────────────────────────────────────────────────────────────────
+const PX_LEVELS=[1,2,4,8];
+document.getElementById('s-px').addEventListener('input',function(){G_PIX=PX_LEVELS[+this.value];document.getElementById('v-px').textContent=G_PIX+'×';});
+document.getElementById('s-sc').addEventListener('input',function(){G_SCAN=+this.value;document.getElementById('v-sc').textContent=this.value;});
+document.getElementById('s-gr').addEventListener('input',function(){G_GRAIN=+this.value;document.getElementById('v-gr').textContent=this.value;});
+document.getElementById('s-gt').addEventListener('input',function(){G_GRIT=this.value/10;document.getElementById('v-gt').textContent=G_GRIT.toFixed(1);});
+document.getElementById('s-wv').addEventListener('input',function(){G_WAVE=+this.value;document.getElementById('v-wv').textContent=this.value;});
+document.getElementById('s-cs').addEventListener('input',function(){G_CAS=+this.value;document.getElementById('v-cs').textContent=this.value;});
+
+render();
+</script>

@@ -1,0 +1,405 @@
+
+<style>
+.pg{padding:22px 18px;font-family:'Courier New',monospace;min-height:520px;}
+.pg-hdr{text-align:center;margin-bottom:10px;}
+.pg-title{font-size:9px;letter-spacing:6px;color:var(--color-text-tertiary);text-transform:uppercase;}
+.pg-sub{font-size:8px;color:var(--color-text-tertiary);margin-top:2px;letter-spacing:2px;}
+.ca-row{display:flex;gap:4px;justify-content:center;align-items:center;margin:0 0 11px;flex-wrap:wrap;}
+.ca-lbl{font-size:8px;color:var(--color-text-tertiary);letter-spacing:2px;margin-right:3px;}
+.ca-btn{background:none;border:0.5px solid var(--color-border-secondary);color:var(--color-text-tertiary);padding:3px 8px;font:8px 'Courier New',monospace;letter-spacing:1px;cursor:pointer;transition:all .15s;}
+.ca-btn:hover{border-color:var(--color-border-primary);color:var(--color-text-secondary);}
+.ca-btn.on{background:var(--color-background-secondary);border-color:var(--color-border-primary);color:var(--color-text-primary);}
+.pg-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;max-width:580px;margin:0 auto;}
+.pg-cell{display:flex;flex-direction:column;align-items:center;}
+.pg-cv{display:block;image-rendering:pixelated;image-rendering:crisp-edges;}
+.pg-label{margin-top:5px;text-align:center;}
+.pg-id{font-size:9px;color:var(--color-text-secondary);letter-spacing:3px;}
+.pg-tr{font-size:8px;color:var(--color-text-tertiary);letter-spacing:1px;margin-top:1px;}
+.pg-nav{display:flex;justify-content:space-between;align-items:center;max-width:580px;margin:11px auto 0;}
+.pg-btn{background:none;border:0.5px solid var(--color-border-secondary);color:var(--color-text-secondary);padding:5px 13px;font:8px 'Courier New',monospace;letter-spacing:3px;cursor:pointer;transition:all .2s;}
+.pg-btn:hover{border-color:var(--color-border-primary);color:var(--color-text-primary);}
+.pg-btn:disabled{opacity:0.2;cursor:default;}
+.pg-info{font-size:8px;color:var(--color-text-tertiary);letter-spacing:3px;}
+</style>
+<div class="pg">
+<h2 class="sr-only">TF Dual-Wave Gallery — macro wave layer plus 1/16 scale micro wave layer with face boundary physics</h2>
+<div class="pg-hdr">
+  <div class="pg-title">TF Dual-Wave Gallery</div>
+  <div class="pg-sub">walkers · CA · macro wave · 1/16 micro wave · border physics</div>
+</div>
+<div class="ca-row">
+  <span class="ca-lbl">automata</span>
+  <button class="ca-btn on" data-ca="off">off</button>
+  <button class="ca-btn" data-ca="life">conway</button>
+  <button class="ca-btn" data-ca="maze">maze</button>
+  <button class="ca-btn" data-ca="dn">day·night</button>
+  <button class="ca-btn" data-ca="seeds">seeds</button>
+  <button class="ca-btn" data-ca="34">3·4 life</button>
+</div>
+<div class="pg-nav" style="margin-bottom:11px;margin-top:0;">
+  <button class="pg-btn" id="p1">← prev</button>
+  <span class="pg-info" id="inf1"></span>
+  <button class="pg-btn" id="n1">next →</button>
+</div>
+<div class="pg-grid" id="grid"></div>
+<div class="pg-nav">
+  <button class="pg-btn" id="p2">← prev</button>
+  <span class="pg-info" id="inf2"></span>
+  <button class="pg-btn" id="n2">next →</button>
+</div>
+</div>
+<script>
+const TOTAL=12,PPP=4,GW=16,GH=16,PX=16,CW=256,CH=256;
+const DRAIN=0.006,GAIN=0.017,REPRO_E=0.80,REPRO_COST=0.27,REPRO_AGE=28,MAX_POP=5;
+const TDECAY=0.9965,THRESHOLD=0.30;
+const WAVE_N=750;           // macro wave particles
+const MICRO_N=Math.round(WAVE_N/16); // 1/16 of big — ~47 micro particles
+const MICRO_SCALE=16.0;     // Perlin frequency multiplier for micro layer
+let pg=0,caMode='off';
+const stops={},wstates={};
+
+// ── PERLIN ────────────────────────────────────────────────────────────────────
+const PERM=(()=>{
+  const p=Array.from({length:256},(_,i)=>i);
+  let s=0xABCDEF12;
+  const r=()=>{s^=s<<13;s^=s>>>17;s^=s<<5;return(s>>>0)/4294967296;};
+  for(let i=255;i>0;i--){const j=(r()*(i+1))|0;[p[i],p[j]]=[p[j],p[i]];}
+  return new Uint8Array([...p,...p]);
+})();
+const G2=[[1,1],[-1,1],[1,-1],[-1,-1],[1,0],[-1,0],[0,1],[0,-1]];
+function perlin2(x,y){
+  const xi=Math.floor(x)&255,yi=Math.floor(y)&255,xf=x-Math.floor(x),yf=y-Math.floor(y);
+  const fd=t=>t*t*t*(t*(t*6-15)+10),u=fd(xf),v=fd(yf);
+  const dot=(gi,dx,dy)=>{const g=G2[gi%8];return g[0]*dx+g[1]*dy;};
+  const l=(a,b,t)=>a+(b-a)*t;
+  return l(l(dot(PERM[xi+PERM[yi]],xf,yf),dot(PERM[xi+1+PERM[yi]],xf-1,yf),u),
+           l(dot(PERM[xi+PERM[yi+1]],xf,yf-1),dot(PERM[xi+1+PERM[yi+1]],xf-1,yf-1),u),v);
+}
+function pnoise(x,y){return perlin2(x,y)*0.65+perlin2(x*2.17,y*2.17)*0.35;}
+
+// ── ENTITY GENERATION — UNCHANGED ─────────────────────────────────────────────
+function xr(s){let v=(s^0xCAFEF00D)>>>0;return()=>{v^=v<<13;v^=v>>>17;v^=v<<5;return(v>>>0)/4294967296;}}
+const MASKS={
+  oval:['0000011111110000','0000111111111000','0001111111111100','0011111111111110','0111111111111111','0111111111111111','1111111111111111','1111111111111111','1111111111111111','1111111111111111','0111111111111111','0111111111111111','0011111111111110','0001111111111100','0000111111111000','0000001111100000'],
+  tall:['0000001111000000','0000011111100000','0000111111110000','0001111111111000','0001111111111000','0011111111111100','0011111111111100','0011111111111100','0011111111111100','0011111111111100','0011111111111100','0001111111111000','0001111111111000','0000111111110000','0000011111100000','0000001111000000'],
+  wide:['0000000000000000','0001111111111000','0011111111111100','0111111111111110','1111111111111111','1111111111111111','1111111111111111','1111111111111111','1111111111111111','1111111111111111','0111111111111110','0011111111111100','0001111111111000','0000011111100000','0000000000000000','0000000000000000'],
+  tri: ['0000000110000000','0000001111000000','0000011111100000','0000111111110000','0001111111111000','0001111111111000','0011111111111100','0011111111111100','0111111111111110','0111111111111110','1111111111111111','1111111111111111','1111111111111111','1111111111111111','1111111111111111','0111111111111110'],
+  hex: ['0000011111110000','0001111111111100','0011111111111110','0111111111111111','0111111111111111','1111111111111111','1111111111111111','1111111111111111','1111111111111111','1111111111111111','1111111111111111','0111111111111111','0111111110111110','0011111111111100','0001111111111000','0000011111100000'],
+  blob:['0000111111110000','0011111111111100','0111111111111110','1111111111111111','1111111111111111','1111111111111111','0111111111111111','0011111111111110','0011111111111111','0111111111111111','1111111111111111','1111111111111110','0111111111111110','0011111111111100','0000111111110000','0000001111000000']
+};
+const MASK_KEYS=Object.keys(MASKS);
+const BW_LEVELS=[[0,72,28,240,255,90,200,18,255],[0,90,35,220,255,75,185,22,255],[0,60,20,245,255,80,210,12,255],[0,110,50,200,248,95,175,30,255],[0,80,30,235,255,88,195,16,255],[0,95,40,215,250,70,180,25,255],[0,65,22,238,255,82,205,14,255],[0,100,45,225,252,85,190,20,255],[0,75,25,242,255,78,208,15,255],[0,85,32,230,253,92,198,18,255],[0,55,18,248,255,72,215,10,255],[0,105,48,210,250,98,172,28,255]];
+const BODY_N=['carapace','chitinous','membrane','crystalline','gelatinous','fibrous'];
+const EYE_N=['compound','stalked','ocellar','pit-organ','biolum','void'];
+const MOUTH_N=['mandible','proboscis','slit','vents','absent','radula'];
+const MORPH_N=['xenomorph','archon','formless','liminal','deep-form','spore'];
+function buildEntity(id){
+  const r=xr(id*0xDEADF00D+0xBEEF1234);
+  const maskKey=MASK_KEYS[Math.floor(r()*MASK_KEYS.length)];
+  const mask=MASKS[maskKey].map(s=>s.split('').map(Number));
+  const cells=Array.from({length:16},()=>new Array(16).fill(-1));
+  for(let y=0;y<16;y++) for(let x=0;x<16;x++) if(mask[y][x]) cells[y][x]=1;
+  const cr=1+Math.floor(r()*5),ca=r()<0.4;
+  for(let y=0;y<cr;y++) for(let x=0;x<16;x++) if(mask[y][x]){if(r()<(ca?(x<8?0.7:0.4):0.75))cells[y][x]=2;}
+  const pt=Math.floor(r()*4);
+  if(pt===0){const ax=3+Math.floor(r()*2),bx=12-Math.floor(r()*2);for(let y=0;y<3;y++){cells[y][ax]=2;cells[y][bx]=2;}}
+  else if(pt===1){const cx=6+Math.floor(r()*4);cells[0][cx]=2;if(cx>0)cells[0][cx-1]=2;}
+  else if(pt===2){for(let x=2;x<14;x+=2+Math.floor(r()*2))cells[0][x]=2;}
+  const ec=Math.floor(r()*6),er=cr+1+Math.floor(r()*2);
+  const pe=(y,x,big)=>{if(y>=0&&y<16&&x>=0&&x<16&&mask[y]&&mask[y][x]){cells[y][x]=3;if(big){if(x+1<16&&mask[y][x+1])cells[y][x+1]=3;if(y+1<16&&mask[y+1]?.[x])cells[y+1][x]=3;if(x+1<16&&y+1<16&&mask[y+1]?.[x+1])cells[y+1][x+1]=3;cells[y][x]=4;}}};
+  if(ec===0){pe(er,7,true);pe(er,8,false);}else if(ec===1){pe(er,4,false);pe(er,7,true);pe(er,11,false);}else if(ec===2){pe(er,3,false);pe(er,6,true);pe(er+1,10,false);pe(er,13,false);}else if(ec===3){pe(er,3,true);pe(er,10,true);}else if(ec===4){pe(er,7,false);pe(er+2,7,true);pe(er+4,7,false);}else{for(let e=0;e<4+Math.floor(r()*3);e++)pe(cr+Math.floor(r()*7),2+Math.floor(r()*12),false);}
+  const mt=Math.floor(r()*6),mr=er+3+Math.floor(r()*2);
+  if(mt===0&&mr<15){for(let d=0;d<3;d++){if(mask[mr+d]){if(4+d<16&&mask[mr+d][4+d])cells[mr+d][4+d]=5;if(11-d>=0&&mask[mr+d][11-d])cells[mr+d][11-d]=5;}}}
+  else if(mt===1&&mr<15){for(let d=0;d<3;d++)if(mr+d<16&&mask[mr+d]&&mask[mr+d][7])cells[mr+d][7]=5;}
+  else if(mt===2&&mr<15){for(let x=5;x<=10;x++)if(mask[mr]&&mask[mr][x])cells[mr][x]=5;}
+  else if(mt===3&&mr<15){for(let x=4;x<12;x+=2)if(mask[mr]&&mask[mr][x])cells[mr][x]=5;if(mr+1<16)for(let x=5;x<12;x+=2)if(mask[mr+1]&&mask[mr+1][x])cells[mr+1][x]=5;}
+  else if(mt===5&&mr<15){const cx=7,cy=mr;[[0,-1],[0,1],[-1,0],[1,0],[-1,-1],[1,1],[-1,1],[1,-1]].forEach(([dx,dy])=>{const nx=cx+dx,ny=cy+dy;if(ny>=0&&ny<16&&nx>=0&&nx<16&&mask[ny]&&mask[ny][nx])cells[ny][nx]=5;});if(mask[cy]&&mask[cy][cx])cells[cy][cx]=6;}
+  const np=1+Math.floor(r()*4);
+  for(let p=0;p<np;p++){const py2=cr+Math.floor(r()*(16-cr-1)),px2=1+Math.floor(r()*14);if(mask[py2]&&mask[py2][px2]&&cells[py2][px2]===1){cells[py2][px2]=6;if(r()<0.5&&px2+1<16&&mask[py2][px2+1]&&cells[py2][px2+1]===1)cells[py2][px2+1]=6;}}
+  for(let y=cr;y<16;y++) for(let x=0;x<16;x++) if(cells[y][x]===1&&r()<0.12)cells[y][x]=7;
+  const shimmer=Array.from({length:256},(_,i)=>{const cy=i>>4,cx=i&15;const ct=cells[cy][cx];const hot=ct===3||ct===4||ct===6;return{sp:hot?2+r()*5:0.2+r()*1.2,ph:r()*Math.PI*2,amp:hot?0.18+r()*0.28:0.01+r()*0.05};});
+  const borderMap=new Uint8Array(256),normalMap=new Float32Array(512);
+  for(let by=0;by<16;by++) for(let bx=0;bx<16;bx++){
+    if(cells[by][bx]===-1) continue;
+    const ok=(x,y)=>x>=0&&x<16&&y>=0&&y<16&&cells[y][x]!==-1;
+    let nx=0,ny=0;
+    if(!ok(bx-1,by)){borderMap[by*16+bx]=1;nx+=1;}
+    if(!ok(bx+1,by)){borderMap[by*16+bx]=1;nx-=1;}
+    if(!ok(bx,by-1)){borderMap[by*16+bx]=1;ny+=1;}
+    if(!ok(bx,by+1)){borderMap[by*16+bx]=1;ny-=1;}
+    const l=Math.sqrt(nx*nx+ny*ny);
+    if(l>0){normalMap[(by*16+bx)*2]=nx/l;normalMap[(by*16+bx)*2+1]=ny/l;}
+  }
+  const validBlocks=[];
+  for(let by=0;by<16;by++) for(let bx=0;bx<16;bx++)
+    if(cells[by][bx]!==-1) validBlocks.push([bx,by]);
+  return{cells,shimmer,bwLevels:BW_LEVELS[id%BW_LEVELS.length],id,
+    borderMap,normalMap,validBlocks,
+    traits:[MORPH_N[Math.floor(r()*MORPH_N.length)],BODY_N[Math.floor(r()*BODY_N.length)],EYE_N[Math.floor(r()*EYE_N.length)],MOUTH_N[mt]]};
+}
+const entities=Array.from({length:TOTAL},(_,i)=>buildEntity(i));
+
+// ── CA RULES ──────────────────────────────────────────────────────────────────
+const CA={
+  life:(a,n)=>a?(n===2||n===3):n===3,
+  maze:(a,n)=>a?(n>=1&&n<=5):n===3,
+  dn:  (a,n)=>a?([3,4,6,7,8].indexOf(n)>-1):([3,6,7,8].indexOf(n)>-1),
+  seeds:(a,n)=>!a&&n===2,
+  '34':(a,n)=>a?(n===3||n===4):(n===3||n===4),
+};
+
+// ── SHARED PARTICLE HELPERS ───────────────────────────────────────────────────
+function inFace(entity,px,py){
+  const bx=(px/PX)|0,by=(py/PX)|0;
+  return bx>=0&&bx<GW&&by>=0&&by<GH&&entity.cells[by][bx]!==-1;
+}
+function spawnParticle(entity){
+  const[bx,by]=entity.validBlocks[Math.floor(Math.random()*entity.validBlocks.length)];
+  return{x:bx*PX+Math.random()*PX, y:by*PX+Math.random()*PX,
+         vx:(Math.random()-0.5)*0.9, vy:(Math.random()-0.5)*0.9,
+         phase:Math.random()*Math.PI*2, wsp:0.5+Math.random()*2.0, br:0.5};
+}
+function reflectParticle(entity,p,time,turbScale){
+  const bx2=(p.x/PX)|0,by2=(p.y/PX)|0;
+  const idx=by2*16+bx2;
+  const nm=entity.normalMap,nx2=nm[idx*2],ny2=nm[idx*2+1];
+  if(nx2||ny2){const dot=p.vx*nx2+p.vy*ny2;p.vx=(p.vx-2*dot*nx2)*0.68;p.vy=(p.vy-2*dot*ny2)*0.68;}
+  else{p.vx*=-0.55;p.vy*=-0.55;}
+  const ts=pnoise(p.x*turbScale+time*0.22,p.y*turbScale-time*0.18)*Math.PI*2;
+  p.vx+=Math.cos(ts)*0.28;p.vy+=Math.sin(ts)*0.28;
+  if(!inFace(entity,p.x+p.vx,p.y+p.vy)){p.vx+=(128-p.x)*0.008;p.vy+=(128-p.y)*0.008;}
+}
+
+// ── MACRO WAVE (scale 1×) ─────────────────────────────────────────────────────
+function initWave(entity){return Array.from({length:WAVE_N},()=>spawnParticle(entity));}
+function updateWave(entity,pts,time){
+  for(const p of pts){
+    const fx=p.x*0.0085+time*0.10, fy=p.y*0.0085+time*0.063;
+    const a1=pnoise(fx,fy)*Math.PI*4;
+    const fx2=p.x*0.022-time*0.055, fy2=p.y*0.022+time*0.040;
+    const a2=pnoise(fx2,fy2)*Math.PI*2;
+    const tx=Math.cos(a1)*1.3+Math.cos(a2)*0.5, ty=Math.sin(a1)*1.3+Math.sin(a2)*0.5;
+    p.vx=p.vx*0.88+tx*0.12; p.vy=p.vy*0.88+ty*0.12;
+    const spd=Math.sqrt(p.vx*p.vx+p.vy*p.vy);
+    if(spd>2.2){p.vx*=2.2/spd;p.vy*=2.2/spd;}
+    const nx=p.x+p.vx,ny=p.y+p.vy;
+    if(inFace(entity,nx,ny)){p.x=nx;p.y=ny;}
+    else reflectParticle(entity,p,time,0.045);
+    p.br=0.35+0.65*(Math.sin(p.phase+time*p.wsp)*0.5+0.5);
+  }
+}
+
+// ── MICRO WAVE (scale 1/16 × macro = 16× higher frequency) ───────────────────
+function initMicro(entity){return Array.from({length:MICRO_N},()=>spawnParticle(entity));}
+function updateMicro(entity,pts,time){
+  // Perlin at 1/16th spatial scale: features every ~7px vs ~117px for macro
+  const S=MICRO_SCALE;
+  for(const p of pts){
+    const fx=p.x*0.0085*S+time*0.28, fy=p.y*0.0085*S+time*0.19;
+    const a1=pnoise(fx,fy)*Math.PI*4;
+    // secondary octave also at micro scale
+    const fx2=p.x*0.022*S-time*0.15, fy2=p.y*0.022*S+time*0.11;
+    const a2=pnoise(fx2,fy2)*Math.PI*2;
+    // micro particles: tighter loops, slightly faster
+    const tx=Math.cos(a1)*1.5+Math.cos(a2)*0.6;
+    const ty=Math.sin(a1)*1.5+Math.sin(a2)*0.6;
+    p.vx=p.vx*0.82+tx*0.18; p.vy=p.vy*0.82+ty*0.18;
+    const spd=Math.sqrt(p.vx*p.vx+p.vy*p.vy);
+    if(spd>2.5){p.vx*=2.5/spd;p.vy*=2.5/spd;}
+    const nx=p.x+p.vx,ny=p.y+p.vy;
+    if(inFace(entity,nx,ny)){p.x=nx;p.y=ny;}
+    else reflectParticle(entity,p,time,0.10); // more turbulence at border for micro
+    // micro particles pulse faster
+    p.br=0.25+0.75*(Math.sin(p.phase+time*p.wsp*2.2)*0.5+0.5);
+  }
+}
+
+// ── WALKER SYSTEM ─────────────────────────────────────────────────────────────
+const D8=[[1,0],[1,1],[0,1],[-1,1],[-1,0],[-1,-1],[0,-1],[1,-1]];
+function mkW(x,y,e){return{x:Math.max(0,Math.min(15,x|0)),y:Math.max(0,Math.min(15,y|0)),energy:Math.min(1,Math.max(0.15,e)),age:0};}
+function initState(entity){
+  const{cells,bwLevels,id}=entity;
+  const map=[],trails=[];
+  for(let by=0;by<16;by++){
+    map.push([]);trails.push([]);
+    for(let bx=0;bx<16;bx++){
+      const ct=cells[by][bx];
+      const base=ct<0?0:(bwLevels[ct]||0);
+      const norm=base/255;
+      const r=xr((bx*73+by*137+id*31337)*0xDEADBEEF);
+      let cnt=0;
+      if(norm>0.65) cnt=2+Math.floor(r()*2);
+      else if(norm>0.35) cnt=1+Math.floor(r()*2);
+      else if(norm>0.15) cnt=r()<0.35?1:0;
+      cnt=Math.min(cnt,3);
+      map[by].push(Array.from({length:cnt},()=>mkW(2+Math.floor(r()*12),2+Math.floor(r()*12),0.3+r()*0.35)));
+      trails[by].push(new Float32Array(256));
+    }
+  }
+  return{map,trails,frame:0,
+    wave:initWave(entity),
+    micro:initMicro(entity)};
+}
+function computeBwGrid(entity,time){
+  const{cells,shimmer,bwLevels}=entity;
+  const g=new Float32Array(256);
+  for(let by=0;by<16;by++) for(let bx=0;bx<16;bx++){
+    const ct=cells[by][bx];
+    const base=ct<0?0:(bwLevels[ct]||bwLevels[1]);
+    const sh=shimmer[by*16+bx];
+    const sm=1+Math.sin(time*sh.sp+sh.ph)*sh.amp;
+    const pn=pnoise(bx*0.26+time*0.046,by*0.26+time*0.031);
+    g[by*16+bx]=Math.max(0,Math.min(255,base*sm*(0.82+0.22*(pn*0.5+0.5))));
+  }
+  return g;
+}
+function tickWalkers(state,rawGrid,time){
+  const{map,trails}=state;
+  state.frame++;
+  const doCA=state.frame%4===0&&caMode!=='off';
+  const rule=CA[caMode];
+  for(let by=0;by<16;by++) for(let bx=0;bx<16;bx++){
+    const brightness=rawGrid[by*16+bx],norm=brightness/255;
+    const trail=trails[by][bx],walkers=map[by][bx];
+    for(let i=0;i<256;i++) trail[i]*=TDECAY;
+    if(doCA&&rule){
+      const nxt=new Float32Array(256);
+      for(let cy=0;cy<16;cy++) for(let cx=0;cx<16;cx++){
+        const alive=trail[cy*16+cx]>=THRESHOLD;
+        let n=0;
+        for(let dy=-1;dy<=1;dy++) for(let dx=-1;dx<=1;dx++){
+          if(!dx&&!dy) continue;
+          if(trail[((cy+dy+16)%16)*16+((cx+dx+16)%16)]>=THRESHOLD) n++;
+        }
+        nxt[cy*16+cx]=rule(alive,n)?Math.min(1,trail[cy*16+cx]+0.18):trail[cy*16+cx]*0.88;
+      }
+      for(let i=0;i<256;i++) trail[i]=nxt[i];
+    }
+    if(walkers.length===0&&norm>0.35&&Math.random()<0.0006*norm*norm)
+      walkers.push(mkW(3+Math.floor(Math.random()*10),3+Math.floor(Math.random()*10),0.38));
+    const next=[];
+    for(const w of walkers){
+      w.energy+=norm*GAIN;w.energy-=DRAIN;
+      w.energy=Math.min(1,Math.max(0,w.energy));w.age++;
+      if(w.energy<=0) continue;
+      const gx=(bx*PX+w.x)*0.055+time*0.038,gy=(by*PX+w.y)*0.055+time*0.022;
+      const snap=(((Math.round(pnoise(gx,gy)*Math.PI*4/(Math.PI*0.25))%8)+8)%8);
+      const[dx,dy]=D8[snap];
+      w.x=Math.max(0,Math.min(15,w.x+dx));w.y=Math.max(0,Math.min(15,w.y+dy));
+      const mark=0.28+w.energy*0.65,ti=w.y*16+w.x;
+      trail[ti]=Math.min(1,trail[ti]+mark);
+      const bx2=Math.max(0,Math.min(15,w.x-dx)),by2=Math.max(0,Math.min(15,w.y-dy));
+      trail[by2*16+bx2]=Math.min(1,trail[by2*16+bx2]+mark*0.4);
+      if(w.energy>=REPRO_E&&w.age>=REPRO_AGE&&next.length<MAX_POP-1){
+        next.push(mkW(w.x+(Math.random()<0.5?1:-1),w.y+(Math.random()<0.5?1:-1),0.28));
+        w.energy-=REPRO_COST;
+      }
+      next.push(w);
+    }
+    map[by][bx]=next;
+  }
+}
+
+// ── RENDER ────────────────────────────────────────────────────────────────────
+function renderEntity(canvas,entity,time){
+  if(!wstates[entity.id]) wstates[entity.id]=initState(entity);
+  const st=wstates[entity.id];
+  const rawGrid=computeBwGrid(entity,time);
+  tickWalkers(st,rawGrid,time);
+  updateWave(entity,st.wave,time);
+  updateMicro(entity,st.micro,time);
+
+  const ctx=canvas.getContext('2d');
+  const img=ctx.createImageData(CW,CH);
+  const buf=img.data;
+
+  // activity boost
+  const activ=new Float32Array(256);
+  for(let by=0;by<16;by++) for(let bx=0;bx<16;bx++){
+    const tr=st.trails[by][bx];let ac=0;
+    for(let i=0;i<256;i++) if(tr[i]>=THRESHOLD) ac++;
+    activ[by*16+bx]=ac/256;
+  }
+
+  // ── L1+L2: base blocks + walker trails ──
+  for(let py=0;py<CH;py++) for(let px=0;px<CW;px++){
+    const bx=px>>4,by=py>>4;
+    const base=rawGrid[by*16+bx];
+    if(base<2){const i=(py*CW+px)<<2;buf[i]=buf[i+1]=buf[i+2]=0;buf[i+3]=255;continue;}
+    const eff=Math.min(255,base+activ[by*16+bx]*40)|0;
+    const alive=st.trails[by][bx][(py&15)*16+(px&15)]>=THRESHOLD;
+    const v=alive?255:eff;
+    const i=(py*CW+px)<<2;buf[i]=buf[i+1]=buf[i+2]=v;buf[i+3]=255;
+  }
+
+  // ── L3: MACRO wave particles ──
+  const{borderMap}=entity;
+  for(const p of st.wave){
+    const cx=p.x|0,cy=p.y|0;
+    if(cx<0||cx>=CW||cy<0||cy>=CH) continue;
+    const onB=borderMap[(cy>>4)*16+(cx>>4)]===1;
+    const add=(Math.min(1,p.br*(onB?1.9:1.0))*165)|0;
+    if(onB){
+      for(let dy=0;dy<2;dy++) for(let dx=0;dx<2;dx++){
+        const px2=cx+dx,py2=cy+dy;
+        if(px2<CW&&py2<CH){const i=(py2*CW+px2)<<2;buf[i]=Math.min(255,buf[i]+add);buf[i+1]=Math.min(255,buf[i+1]+add);buf[i+2]=Math.min(255,buf[i+2]+add);}
+      }
+    } else {
+      const i=(cy*CW+cx)<<2;buf[i]=Math.min(255,buf[i]+add);buf[i+1]=Math.min(255,buf[i+1]+add);buf[i+2]=Math.min(255,buf[i+2]+add);
+    }
+  }
+
+  // ── L4: MICRO wave particles (1/16 scale — tight spirals, sharper pulses) ──
+  // Always single pixel, slightly dimmer, rapid oscillation
+  for(const p of st.micro){
+    const cx=p.x|0,cy=p.y|0;
+    if(cx<0||cx>=CW||cy<0||cy>=CH) continue;
+    const onB=borderMap[(cy>>4)*16+(cx>>4)]===1;
+    // At border: micro particles are slightly boosted (create a fine-grained rim sparkle)
+    const add=(p.br*(onB?130:85))|0;
+    const i=(cy*CW+cx)<<2;
+    buf[i]=Math.min(255,buf[i]+add);
+    buf[i+1]=Math.min(255,buf[i+1]+add);
+    buf[i+2]=Math.min(255,buf[i+2]+add);
+  }
+
+  ctx.putImageData(img,0,0);
+}
+
+// ── CA SWITCH ─────────────────────────────────────────────────────────────────
+document.querySelector('.ca-row').addEventListener('click',e=>{
+  const btn=e.target.closest('.ca-btn');
+  if(!btn) return;
+  caMode=btn.dataset.ca;
+  document.querySelectorAll('.ca-btn').forEach(b=>b.classList.toggle('on',b===btn));
+});
+
+// ── GALLERY ───────────────────────────────────────────────────────────────────
+function render(){
+  const grid=document.getElementById('grid');
+  Object.values(stops).forEach(s=>cancelAnimationFrame(s));
+  Object.keys(stops).forEach(k=>delete stops[k]);
+  grid.innerHTML='';
+  const start=pg*PPP,end=Math.min(start+PPP,TOTAL);
+  for(let i=start;i<end;i++){
+    const ent=entities[i];
+    const cell=document.createElement('div');cell.className='pg-cell';
+    const canvas=document.createElement('canvas');canvas.className='pg-cv';
+    canvas.width=CW;canvas.height=CH;canvas.style.cssText=`width:${CW}px;height:${CH}px;`;
+    const lbl=document.createElement('div');lbl.className='pg-label';
+    lbl.innerHTML=`<div class="pg-id">TF-${String(i).padStart(4,'0')}</div><div class="pg-tr">${ent.traits.slice(0,3).join(' · ')}</div>`;
+    cell.appendChild(canvas);cell.appendChild(lbl);grid.appendChild(cell);
+    const loop=()=>{renderEntity(canvas,ent,Date.now()/1000);stops[i]=requestAnimationFrame(loop);};
+    loop();
+  }
+  const pages=Math.ceil(TOTAL/PPP);
+  const inf=`${pg+1} / ${pages}`;
+  ['inf1','inf2'].forEach(id=>document.getElementById(id).textContent=inf);
+  ['p1','p2'].forEach(id=>{document.getElementById(id).disabled=pg===0;});
+  ['n1','n2'].forEach(id=>{document.getElementById(id).disabled=pg>=pages-1;});
+}
+function nav(d){const np=pg+d,pages=Math.ceil(TOTAL/PPP);if(np>=0&&np<pages){pg=np;render();}}
+['p1','p2'].forEach(id=>document.getElementById(id).addEventListener('click',()=>nav(-1)));
+['n1','n2'].forEach(id=>document.getElementById(id).addEventListener('click',()=>nav(1)));
+render();
+</script>

@@ -1,0 +1,802 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>ZK · ASCII SYNTH</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:'Courier New',monospace;color:#fff;}
+
+/* ── LAYOUT */
+#app{display:flex;height:100vh;width:100vw;}
+#sidebar{width:420px;flex-shrink:0;display:flex;flex-direction:column;border-right:1px solid #1c1c1c;background:#050505;}
+#sidebar-scroll{flex:1;overflow-y:auto;padding:12px;}
+#sidebar-scroll::-webkit-scrollbar{width:3px;}
+#sidebar-scroll::-webkit-scrollbar-thumb{background:#222;}
+#main{flex:1;display:flex;align-items:center;justify-content:center;background:#000;overflow:auto;}
+
+/* ── TOP BAR */
+#topbar{padding:10px 14px;border-bottom:1px solid #1a1a1a;display:flex;align-items:center;gap:8px;flex-shrink:0;background:#080808;}
+.logo{font-size:11px;letter-spacing:5px;color:#444;flex:1;}
+
+/* ── BUTTONS */
+.btn{background:#fff;border:2px solid #fff;color:#000;padding:5px 11px;font:11px 'Courier New';letter-spacing:1px;cursor:pointer;font-weight:bold;white-space:nowrap;transition:all .08s;}
+.btn:hover{background:#ddd;}
+.btn.on{background:#000;border-color:#fff;color:#fff;}
+.btn.dim{background:#000;border-color:#333;color:#333;}
+
+/* ── DROPDOWNS */
+select{appearance:none;background:#0d0d0d;border:1px solid #2a2a2a;color:#ccc;padding:5px 28px 5px 10px;font:11px 'Courier New';cursor:pointer;outline:none;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23666'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 8px center;min-width:120px;}
+select:hover{border-color:#555;}
+select option{background:#0d0d0d;color:#ccc;}
+
+/* ── SLIDERS */
+.sl-wrap{display:flex;align-items:center;gap:8px;}
+.sl-wrap label{font-size:10px;color:#666;width:72px;flex-shrink:0;letter-spacing:.5px;}
+.sl-wrap input[type=range]{flex:1;height:4px;appearance:none;background:#1a1a1a;cursor:pointer;outline:none;}
+.sl-wrap input[type=range]::-webkit-slider-thumb{appearance:none;width:14px;height:14px;background:#fff;border-radius:0;}
+.sl-wrap b{font-size:10px;color:#888;width:36px;text-align:right;flex-shrink:0;}
+
+/* ── SECTION */
+.sec{border:1px solid #141414;padding:12px;margin:0 0 8px;background:#040404;}
+.sec-hdr{font-size:9px;letter-spacing:3px;color:#444;text-transform:uppercase;border-bottom:1px solid #111;padding-bottom:6px;margin:0 0 10px;display:flex;align-items:baseline;gap:8px;}
+.sec-hdr small{font-size:8px;color:#2a2a2a;letter-spacing:1px;}
+.row{display:flex;align-items:center;gap:8px;margin:0 0 8px;flex-wrap:wrap;}
+.lbl{font-size:10px;color:#555;width:72px;flex-shrink:0;letter-spacing:.5px;}
+
+/* ── LAYER PANEL */
+.lp{border:1px solid #171717;padding:10px;margin:0 0 8px;background:#030303;}
+.lp-hdr{display:flex;align-items:center;gap:8px;margin:0 0 10px;}
+.lnum{font-size:22px;color:#2a2a2a;font-weight:bold;min-width:30px;letter-spacing:1px;}
+.lp-cv{image-rendering:pixelated;border:1px solid #141414;flex-shrink:0;}
+.lp-info{font-size:9px;color:#2a2a2a;letter-spacing:.5px;flex:1;}
+.lp-body{display:flex;gap:10px;}
+.lp-left{display:flex;flex-direction:column;align-items:center;gap:4px;}
+.lp-right{flex:1;min-width:0;}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:0 0 8px;}
+
+/* ── ONOFF */
+.onoff{background:#fff;border:2px solid #fff;color:#000;padding:4px 12px;font:11px 'Courier New';font-weight:bold;cursor:pointer;letter-spacing:2px;min-width:52px;}
+.onoff.off{background:#000;border-color:#2a2a2a;color:#2a2a2a;}
+
+/* ── FACE STRIP */
+.fc{image-rendering:pixelated;cursor:pointer;border:1px solid #1a1a1a;opacity:.3;transition:opacity .1s;}
+.fc.on{opacity:1;border-color:#fff;}
+.fc:hover{opacity:.7;}
+/* drop zone */
+#drop-zone{border:1px dashed #2a2a2a;padding:7px 10px;font-size:9px;color:#333;letter-spacing:1px;cursor:pointer;text-align:center;margin:4px 0 0;}
+#drop-zone.drag-over{border-color:#888;color:#888;}
+#drop-zone input[type=file]{display:none;}
+
+/* ── CANVAS */
+#cv{image-rendering:pixelated;border:1px solid #111;display:block;}
+#cv-wrap{position:relative;}
+#cv-wrap.g4{display:grid;grid-template-columns:1fr 1fr;gap:2px;background:#111;}
+canvas.sub{image-rendering:pixelated;display:block;}
+
+/* ── MODAL */
+#modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.97);z-index:99;overflow:auto;padding:24px;}
+#modal-box{max-width:680px;margin:0 auto;border:1px solid #222;padding:20px;background:#050505;}
+#modal-box h2{font-size:13px;letter-spacing:4px;color:#555;margin:0 0 14px;}
+#modal-box pre{font-size:11px;color:#555;background:#020202;border:1px solid #1a1a1a;padding:12px;white-space:pre-wrap;line-height:1.7;margin:0 0 10px;overflow-x:auto;}
+#modal-box textarea{width:100%;height:180px;background:#020202;border:1px solid #1a1a1a;color:#666;font:11px 'Courier New';padding:10px;resize:vertical;}
+.m-btns{display:flex;gap:8px;margin-top:10px;}
+</style>
+</head>
+<body>
+<div id="app">
+
+<div id="sidebar">
+<div id="topbar">
+  <span class="logo">ZK · ASCII · SYNTH</span>
+  <button class="btn on" id="s1" onclick="setSz(1)">1:1</button>
+  <button class="btn" id="s3" onclick="setSz(3)">3×</button>
+  <button class="btn" id="s4" onclick="setSz(4)">4×</button>
+  <button class="btn" id="sg" onclick="toggleGrid()">GRID</button>
+  <button class="btn" onclick="openExport()">EXPORT</button>
+</div>
+
+<div id="sidebar-scroll">
+
+<!-- FACES -->
+<div class="sec">
+  <div class="sec-hdr">FACES <small>ZK · ANIM · TF xenomoderns · top layer blend</small></div>
+  <div id="fstrip" style="margin:0 0 4px;display:flex;flex-wrap:wrap;gap:3px;align-items:center;"></div>
+  <div id="anim-stat" style="font-size:9px;color:#2a2a2a;letter-spacing:1px;margin:0 0 6px;">fetching animation faces…</div>
+  <div id="drop-zone" onclick="document.getElementById('face-file').click()" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="handleFaceDrop(event)">
+    DROP IMAGE HERE · OR CLICK TO LOAD
+    <input type="file" id="face-file" accept="image/*" onchange="handleFaceFile(this.files[0])">
+  </div>
+  <div class="row">
+    <button class="btn on" id="fnone" onclick="selFace(-1)">NONE</button>
+    <span id="fstat" style="font-size:10px;color:#444;letter-spacing:2px;">NO FACE</span>
+  </div>
+  <div class="row">
+    <span class="lbl">FACE BLEND</span>
+    <select id="fbm-sel" onchange="FBM=this.value">
+      <option value="mul">MULTIPLY</option><option value="scr">SCREEN</option>
+      <option value="ovl">OVERLAY</option><option value="add">ADD</option>
+      <option value="dif">DIFFERENCE</option><option value="xor">XOR</option>
+      <option value="drk">DARKEN</option><option value="lgt">LIGHTEN</option>
+      <option value="nrm">NORMAL</option>
+    </select>
+  </div>
+</div>
+
+<!-- GLOBAL -->
+<div class="sec">
+  <div class="sec-hdr">GLOBAL</div>
+  <div class="row"><span class="lbl">PALETTE</span>
+    <select id="pal-sel" onchange="GP=+this.value">
+      <option value="0">MONO</option><option value="1">XENO</option>
+      <option value="2">4-PRI</option><option value="3">ACID</option>
+      <option value="4">DEEP</option><option value="5">FIRE</option>
+      <option value="6">VOID</option><option value="7">JADE</option>
+    </select>
+  </div>
+  <div class="sl-wrap"><label>SPEED</label><input type="range" id="gspd" min="1" max="20" value="5"><b id="gspd-v">1.0×</b></div>
+</div>
+
+<!-- MASTER POST -->
+<div class="sec">
+  <div class="sec-hdr">MASTER POST <small>applied after composite</small></div>
+  <div class="sl-wrap" style="margin:0 0 6px;"><label>BRIGHTNESS</label><input type="range" id="m-bri" min="-128" max="128" value="0"><b id="v-bri">0</b></div>
+  <div class="sl-wrap" style="margin:0 0 6px;"><label>CONTRAST</label><input type="range" id="m-con" min="-128" max="128" value="0"><b id="v-con">0</b></div>
+  <div class="sl-wrap" style="margin:0 0 6px;"><label>GAMMA</label><input type="range" id="m-gam" min="10" max="300" value="100"><b id="v-gam">1.00</b></div>
+  <div class="sl-wrap"><label>INVERT</label><input type="range" id="m-inv" min="0" max="100" value="0"><b id="v-inv">0%</b></div>
+</div>
+
+<!-- SELF-SYNTHESIS -->
+<div class="sec">
+  <div class="sec-hdr">SELF-SYNTHESIS <small>composite feeds back into layers</small></div>
+  <div class="row">
+    <button class="btn" id="self-btn" onclick="toggleSelf()">SELF OFF</button>
+    <span id="self-stat" style="font-size:9px;color:#333;letter-spacing:1px;">disabled</span>
+  </div>
+  <div class="sl-wrap" style="margin:0 0 6px;"><label>MIX</label><input type="range" id="self-mix" min="0" max="100" value="50"><b id="v-smix">50%</b></div>
+  <div class="sl-wrap" style="margin:0 0 6px;"><label>DECAY</label><input type="range" id="self-dec" min="1" max="100" value="85"><b id="v-sdec">85%</b></div>
+  <div class="row">
+    <span class="lbl">BLEND</span>
+    <select id="sbm-sel" onchange="SELF_BM=this.value">
+      <option value="add">ADD</option><option value="mul">MULTIPLY</option>
+      <option value="scr">SCREEN</option><option value="xor">XOR</option>
+      <option value="ovl">OVERLAY</option><option value="dif">DIFFERENCE</option>
+      <option value="inv">INVERT-ADD</option><option value="max">MAX</option>
+    </select>
+  </div>
+</div>
+
+<!-- 3 LAYERS -->
+<div id="lpanels"></div>
+
+</div><!-- /sidebar-scroll -->
+</div><!-- /sidebar -->
+
+<div id="main">
+  <div id="cv-wrap">
+    <canvas id="cv" width="256" height="256" style="width:256px;height:256px;"></canvas>
+  </div>
+</div>
+
+</div>
+
+<!-- EXPORT MODAL -->
+<div id="modal">
+  <div id="modal-box">
+    <h2>EXPORT · ZK ASCII SYNTH PRESET</h2>
+    <pre id="exp-guide">
+TRANSFORM AN INPUT PHOTO INTO ZK ASCII SYNTH OUTPUT
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. PREPARE IMAGE  256×256px PNG, desaturated for luminance mapping.
+
+2. LOAD AS FACE   Select any face thumbnail. Its 16×16 brightness
+   DRIVER         grid becomes the noise source for ◈-enabled layers.
+                  Bright → dense patterns. Dark → sparse / empty.
+
+3. LAYER STRATEGY
+   L1 (coarse)  bs=64 or 32. DENSITY or BAYER. Establishes macro form.
+   L2 (mid)     bs=16 or 8.  SCANLINE or DIAGONAL. Adds texture grid.
+   L3 (fine)    bs=4.        GLITCH or BAYER. Micro-detail and grain.
+
+4. ALGORITHMS
+   DENSITY    Halftone-style ordered fill, 8 density levels.
+   SCANLINE   Horizontal raster lines, sparse to solid.
+   DIAGONAL   Cross-hatch from corner glyphs.
+   GLITCH     Corrupt data patterns, sparse XOR masks.
+   BAYER      8×8 ordered dithering matrix.
+   REACTION   Gray-Scott reaction-diffusion feeds the pattern index.
+   WAVEFOLD   Sinusoidal folded waveform — infinite harmonic bands.
+   VORONOI    Block-level distance field from procedural seed points.
+   PHYSARUM   Slime-mould agent diffusion approximation.
+   LENIA      Continuous cellular automaton (smooth kernel).
+
+5. NOISE MODES
+   DIRECTIONAL  Noise scrolls linearly in +X direction.
+   EVOLUTIVE    Noise coordinates orbit circularly — no net drift.
+   SELF         Previous frame's composite drives the pattern index.
+
+6. BLEND MODES (per layer, accumulative into composite)
+   ADD / SCR / OVL → build brightness  XOR → interference edges
+   DRK / MUL → suppress noise          DIF → tonal contrast rings
+
+7. SELF-SYNTHESIS
+   Turn on SELF and set DECAY to 90–98% for slow recursive burn.
+   Enable ◈ on L3 (fine layer) for micro-feedback detail injection.
+   XOR blend mode creates glitchy recursive interference loops.
+
+8. MASTER POST
+   BRIGHTNESS / CONTRAST for final tonal control.
+   GAMMA < 1.0 lifts shadows. GAMMA > 1.0 deepens blacks.
+   INVERT at 100% produces a negative — useful for XENO/ACID palettes.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+</pre>
+    <div style="font-size:10px;color:#444;margin-bottom:4px;letter-spacing:1px;">PRESET JSON</div>
+    <textarea id="exp-json" readonly></textarea>
+    <div class="m-btns">
+      <button class="btn on" onclick="copyExp()">COPY</button>
+      <button class="btn" onclick="dlExp()">DOWNLOAD .txt</button>
+      <button class="btn" onclick="document.getElementById('modal').style.display='none'">CLOSE</button>
+    </div>
+    <div id="exp-msg" style="font-size:10px;color:#555;margin-top:8px;letter-spacing:1px;"></div>
+  </div>
+</div>
+
+<script>
+// ── CORE CONSTANTS
+const W=256,H=256;
+let GP=0,GS=1,GZ=1,GRID=false,selF=-1,FBM='mul';
+let M_BRI=0,M_CON=0,M_GAM=1,M_INV=0;
+let SELF_ON=false,SELF_MIX=.5,SELF_DEC=.85,SELF_BM='add';
+const selfAccum=new Float32Array(W*H);
+
+// ── PALETTES
+const PAL=[
+  {b:[0,0,0],a:[255,255,255]},{b:[0,0,0],a:[0,240,140]},{b:[0,0,0],a:[255,230,0]},
+  {b:[0,0,0],a:[185,255,0]},{b:[0,0,8],a:[25,105,255]},{b:[0,0,0],a:[255,125,0]},
+  {b:[4,0,8],a:[220,30,255]},{b:[0,5,2],a:[0,255,180]}
+];
+
+// ── PERLIN
+const PP=(()=>{const p=Array.from({length:256},(_,i)=>i);let s=0xABCDEF12;const r=()=>{s^=s<<13;s^=s>>>17;s^=s<<5;return(s>>>0)/4294967296;};for(let i=255;i>0;i--){const j=(r()*(i+1))|0;[p[i],p[j]]=[p[j],p[i]];}return new Uint8Array([...p,...p]);})();
+const G2=[[1,1],[-1,1],[1,-1],[-1,-1],[1,0],[-1,0],[0,1],[0,-1]];
+function p2(x,y){const xi=Math.floor(x)&255,yi=Math.floor(y)&255,xf=x-Math.floor(x),yf=y-Math.floor(y);const f=t=>t*t*t*(t*(t*6-15)+10),u=f(xf),v=f(yf);const d=(gi,dx,dy)=>{const g=G2[gi%8];return g[0]*dx+g[1]*dy;};const lp=(a,b,t)=>a+(b-a)*t;return lp(lp(d(PP[xi+PP[yi]],xf,yf),d(PP[xi+1+PP[yi]],xf-1,yf),u),lp(d(PP[xi+PP[yi+1]],xf,yf-1),d(PP[xi+1+PP[yi+1]],xf-1,yf-1),u),v);}
+function pn(x,y,s=0){return p2(x+s,y+s)*.5+p2((x+s)*2.1,(y+s)*2.1)*.25+.375;}
+
+// ── PATTERNS (8-level halftone sets)
+const DP=[[0,0,0,0,0,0,0,0],[0,0,0,24,24,0,0,0],[0,24,24,0,0,24,24,0],[0,0,60,60,0,0,60,60],[36,36,255,36,36,255,36,36],[0,126,255,126,0,126,255,126],[60,126,255,255,255,255,126,60],[255,255,255,255,255,255,255,255]];
+const SP=[[0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,255],[0,0,0,255,0,0,0,255],[0,0,255,0,0,255,0,255],[0,255,0,255,0,255,0,255],[255,255,0,0,255,255,0,255],[255,255,255,0,255,255,255,0],[255,255,255,255,255,255,255,255]];
+const GP2=[[0,0,0,0,0,0,0,0],[128,64,32,16,8,4,2,1],[1,2,4,8,16,32,64,128],[129,66,36,24,24,36,66,129],[195,102,60,24,24,60,102,195],[231,189,126,60,60,126,189,231],[255,127,62,28,28,62,127,255],[255,255,255,255,255,255,255,255]];
+const XP=[[0,0,0,0,0,0,0,0],[255,0,0,0,0,0,0,0],[255,0,0,0,255,0,0,0],[170,85,170,85,170,85,170,85],[255,0,255,255,0,0,255,0],[255,255,0,255,0,255,255,255],[255,255,255,0,255,255,255,255],[255,255,255,255,255,255,255,255]];
+const B8=new Uint8Array([0,32,8,40,2,34,10,42,48,16,56,24,50,18,58,26,12,44,4,36,14,46,6,38,60,28,52,20,62,30,54,22,3,35,11,43,1,33,9,41,51,19,59,27,49,17,57,25,15,47,7,39,13,45,5,37,63,31,55,23,61,29,53,21]);
+const PSETS={density:DP,scanline:SP,diagonal:GP2,glitch:XP,bayer:null};
+
+// ── REACTION-DIFFUSION (Gray-Scott) state per layer
+const RD_SIZE=64; // 64×64 grid, sampled at block level
+const RD_STATE=Array.from({length:3},()=>({u:new Float32Array(RD_SIZE*RD_SIZE).fill(1),v:new Float32Array(RD_SIZE*RD_SIZE),u2:new Float32Array(RD_SIZE*RD_SIZE),v2:new Float32Array(RD_SIZE*RD_SIZE),init:false}));
+function initRD(s,seed){
+  s.u.fill(1);s.v.fill(0);s.init=true;
+  let r=(seed^0xDEAD)>>>0;const rn=()=>{r^=r<<13;r^=r>>>17;r^=r<<5;return(r>>>0)/4294967296;};
+  for(let i=0;i<12;i++){const cx=8+Math.floor(rn()*(RD_SIZE-16)),cy=8+Math.floor(rn()*(RD_SIZE-16));for(let dy=-3;dy<=3;dy++) for(let dx=-3;dx<=3;dx++){const idx=(cy+dy)*RD_SIZE+(cx+dx);s.u[idx]=.5;s.v[idx]=.25+rn()*.1;}}
+}
+function stepRD(s){
+  const N=RD_SIZE,F=0.055,K=0.062,Du=0.21,Dv=0.105;
+  for(let y=0;y<N;y++) for(let x=0;x<N;x++){
+    const i=y*N+x,u=s.u[i],v=s.v[i];
+    const lap=(a)=>{const xm=x>0?x-1:N-1,xp=x<N-1?x+1:0,ym=y>0?y-1:N-1,yp=y<N-1?y+1:0;return a[ym*N+x]+a[yp*N+x]+a[y*N+xm]+a[y*N+xp]-4*a[i];};
+    const uvv=u*v*v;
+    s.u2[i]=u+Du*lap(s.u)-uvv+F*(1-u);
+    s.v2[i]=v+Dv*lap(s.v)+uvv-(F+K)*v;
+  }
+  const tu=s.u;const tv=s.v;s.u=s.u2;s.v=s.v2;s.u2=tu;s.v2=tv;
+}
+function sampleRD(s,bx,by,nB){
+  const rx=Math.floor(bx*RD_SIZE/nB),ry=Math.floor(by*RD_SIZE/nB);
+  return Math.max(0,Math.min(1,1-s.u[ry*RD_SIZE+rx]));
+}
+
+// ── VORONOI seeds (per layer)
+const VOR_SEEDS=Array.from({length:3},(_,li)=>{
+  let r=(li*0x9E3779B9)>>>0;const rn=()=>{r^=r<<13;r^=r>>>17;r^=r<<5;return(r>>>0)/4294967296;};
+  return Array.from({length:8},()=>({x:rn(),y:rn()}));
+});
+function sampleVoronoi(seeds,bx,by,nB,t){
+  const fx=(bx+.5)/nB,fy=(by+.5)/nB;
+  let d1=99,d2=99;
+  for(const s of seeds){
+    const sx=(s.x+Math.sin(t*.3+s.y*6)*.04)%1,sy=(s.y+Math.cos(t*.25+s.x*5)*.04)%1;
+    const d=Math.hypot(fx-sx,fy-sy);if(d<d1){d2=d1;d1=d;}else if(d<d2)d2=d;
+  }
+  return Math.min(1,(d2-d1)*4);
+}
+
+// ── WAVEFOLD
+function sampleWavefold(bx,by,nB,nf,ns,seed,t){
+  const x=bx/nB,y=by/nB;
+  let v=Math.sin(x*nf*6+t*ns*.3+seed)+Math.sin(y*nf*4-t*ns*.2+seed*.7)*.5;
+  // fold: bounce between -1 and 1
+  v=v/2.5;for(let i=0;i<3;i++){if(v>1)v=2-v;else if(v<-1)v=-2-v;}
+  return (v+1)/2;
+}
+
+// ── PHYSARUM approximation (2D random walk diffusion stored in texture)
+const PHY_SIZE=64;
+const PHY=Array.from({length:3},(_,li)=>{
+  const trail=new Float32Array(PHY_SIZE*PHY_SIZE);
+  let r=(li*0xBEEFCAFE)>>>0;const rn=()=>{r^=r<<13;r^=r>>>17;r^=r<<5;return(r>>>0)/4294967296;};
+  const agents=Array.from({length:48},()=>({x:PHY_SIZE/2+(rn()-.5)*PHY_SIZE*.4,y:PHY_SIZE/2+(rn()-.5)*PHY_SIZE*.4,a:rn()*Math.PI*2}));
+  return{trail,agents,rn};
+});
+function stepPhysarum(p){
+  const N=PHY_SIZE,trail=p.trail,agents=p.agents,rn=p.rn;
+  const sense=(a,ang)=>{const sx=a.x+Math.cos(ang)*3,sy=a.y+Math.sin(ang)*3;const ix=((Math.round(sx)%N)+N)%N,iy=((Math.round(sy)%N)+N)%N;return trail[iy*N+ix];};
+  for(const a of agents){
+    const l=sense(a,a.a-.4),f=sense(a,a.a),r2=sense(a,a.a+.4);
+    if(f>l&&f>r2){}else if(f<l&&f<r2){a.a+=rn()<.5?.4:-.4;}else if(l<r2)a.a+=.4;else if(r2<l)a.a-=.4;
+    a.a+=(rn()-.5)*.2;
+    a.x=(a.x+Math.cos(a.a)+N)%N;a.y=(a.y+Math.sin(a.a)+N)%N;
+    const ix=((Math.floor(a.x))%N+N)%N,iy=((Math.floor(a.y))%N+N)%N;trail[iy*N+ix]=Math.min(1,trail[iy*N+ix]+.3);
+  }
+  // diffuse + decay
+  const tmp=new Float32Array(N*N);
+  for(let y=0;y<N;y++) for(let x=0;x<N;x++){
+    const i=y*N+x,xm=(x-1+N)%N,xp=(x+1)%N,ym=(y-1+N)%N,yp=(y+1)%N;
+    tmp[i]=(trail[i]*.6+trail[ym*N+x]*.1+trail[yp*N+x]*.1+trail[y*N+xm]*.1+trail[y*N+xp]*.1)*.95;
+  }
+  p.trail.set(tmp);
+}
+function samplePhysarum(p,bx,by,nB){
+  const ix=Math.floor(bx*PHY_SIZE/nB),iy=Math.floor(by*PHY_SIZE/nB);
+  return p.trail[iy*PHY_SIZE+ix];
+}
+
+// ── LENIA kernel (continuous CA, 1-channel)
+const LENIA_SIZE=64;
+const LENIA=Array.from({length:3},(_,li)=>{
+  const grid=new Float32Array(LENIA_SIZE*LENIA_SIZE);
+  let r=(li*0xF00DFACE)>>>0;const rn=()=>{r^=r<<13;r^=r>>>17;r^=r<<5;return(r>>>0)/4294967296;};
+  const N=LENIA_SIZE;
+  for(let y=N/4;y<3*N/4;y++) for(let x=N/4;x<3*N/4;x++) if(rn()<.35)grid[y*N+x]=rn();
+  return{grid,rn};
+});
+function stepLenia(L){
+  const N=LENIA_SIZE,g=L.grid,ng=new Float32Array(N*N);
+  const R=8,mu=.15,sigma=.017,growth=(x)=>2*Math.exp(-((x-mu)*(x-mu))/(2*sigma*sigma))-1;
+  for(let y=0;y<N;y++) for(let x=0;x<N;x++){
+    let conv=0,wsum=0;
+    for(let dy=-R;dy<=R;dy++) for(let dx=-R;dx<=R;dx++){
+      const dist=Math.sqrt(dx*dx+dy*dy);if(dist>R)continue;
+      const w=Math.exp(-.5*(dist/R*3)*(dist/R*3));
+      conv+=g[((y+dy+N)%N)*N+((x+dx+N)%N)]*w;wsum+=w;
+    }
+    ng[y*N+x]=Math.max(0,Math.min(1,g[y*N+x]+.1*growth(conv/wsum)));
+  }
+  L.grid.set(ng);
+}
+function sampleLenia(L,bx,by,nB){
+  const ix=Math.floor(bx*LENIA_SIZE/nB),iy=Math.floor(by*LENIA_SIZE/nB);
+  return L.grid[iy*LENIA_SIZE+ix];
+}
+
+// ── BLEND
+function bl(a,b,m){switch(m){case'add':return Math.min(255,a+b);case'drk':return Math.min(a,b);case'mul':return a*b/255|0;case'max':return Math.max(a,b);case'xor':return a^b;case'scr':return 255-((255-a)*(255-b)/255)|0;case'dif':return Math.abs(a-b);case'inv':return Math.min(255,a+255-b);case'ovl':return a<128?(2*a*b/255)|0:(255-2*(255-a)*(255-b)/255)|0;case'lgt':return Math.max(a,b);case'nrm':return b>8?b:a;default:return Math.min(255,a+b);}}
+
+// ── ZK FACES
+function mkFace(id){
+  const MK=[[0x1ff8,0x3ffc,0x7ffe,0xffff,0xffff,0xffff,0xffff,0xffff,0xffff,0xffff,0x7fff,0x7ffe,0x3ffc,0x1ff8,0x0ff0,0x03e0],[0x00f0,0x01f8,0x03fc,0x07fe,0x07fe,0x0fff,0x0fff,0x0fff,0x0fff,0x0fff,0x0fff,0x07fe,0x07fe,0x03fc,0x01f8,0x00f0],[0,0x0ff8,0x1ffc,0x3ffe,0xffff,0xffff,0xffff,0xffff,0xffff,0xffff,0x3ffe,0x1ffc,0x0ff8,0x01e0,0,0],[0x01f8,0x0ffc,0x1ffe,0x3fff,0x3fff,0xffff,0xffff,0xffff,0xffff,0xffff,0xffff,0x3fff,0x1ffe,0x0ffc,0x07f8,0x01e0],[0x0ff0,0x3ffc,0x7ffe,0xffff,0xffff,0xffff,0x7fff,0x3ffe,0x3fff,0x7fff,0xffff,0x7ffe,0x7ffe,0x3ffc,0x0ff0,0x00f0]];
+  const BWL=[[0,72,28,240,255,90,200,18],[0,90,35,220,255,75,185,22],[0,60,20,245,255,80,210,12],[0,110,50,200,248,95,175,30],[0,80,30,235,255,88,195,16]];
+  let s=(id^0xCAFEBABE)>>>0;const r=()=>{s^=s<<13;s^=s>>>17;s^=s<<5;return(s>>>0)/4294967296;};
+  const mk=MK[id%MK.length];
+  const cells=Array.from({length:16},(_,y)=>Array.from({length:16},(_,x)=>(mk[y]>>(15-x))&1?1:-1));
+  const cr=1+Math.floor(r()*4);for(let y=0;y<cr;y++) for(let x=0;x<16;x++) if(cells[y][x]===1&&r()<.75)cells[y][x]=2;
+  const er=cr+1+Math.floor(r()*2);[[[er,7,4],[er,8,3]],[[er,4,3],[er,11,4]],[[er,3,4],[er,6,3],[er,12,3]]].forEach((es,i)=>{if(Math.floor(r()*3)===i)es.forEach(([y,x,t])=>{if(y<16&&cells[y]?.[x]!==-1)cells[y][x]=t;});});
+  const bwl=BWL[id%BWL.length];const rawB=new Float32Array(256);
+  for(let by=0;by<16;by++) for(let bx=0;bx<16;bx++){const ct=cells[by][bx];rawB[by*16+bx]=ct===-1?0:(bwl[ct]||0);}
+  return{rawB};
+}
+const ZKB=['iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAIAAADYYG7QAAABTUlEQVRYCc3BCYrDQBAEwcz/P7oWgVjLpueyRuAImRM2kDGZE/aQAZkT9pABmRC2kQGZELaRAZkQtpEBmRO2kR6ZE7aRHpkTtpEemRO2kR6ZE7aRHpkQkE/he9Ik08JJXsI3pEnmhIIQalILB2mSCWEPOQSkSW4Iy+QQkJqMhIO8CQPyKZyEgNSkK9wib8KL1KQrPEVq0hWeIjXpCg+SgnSFB0lBRsJTpCAj4SlSkJGwmRBO8kkmhCY5hJMQBoRwkILMCQWphSYhHKQmc8IeQjhITZoCchFukVNAmqQpIBfhFvkXkAZpCshFuEsISI+sCBtIj7QF5E04yUCoyYCsCCchFOQlFGRAVoRbZEwGAnIRTnIIC2RMBgJyEV6kEGoyRcYCchGWySxZF5bJLPlKWCAL5FthTJbJDaFJviQ7hJPcJT9Gfoz8GPkx8mP+AAUzSzEw/N3fAAAAAElFTkSuQmCC','iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAIAAADYYG7QAAABO0lEQVRYCc3BAY6CQBQFwe77H/pthmAU+IMrwmCV/Bj5MfJj5AvhSc4h/xM+JkdIRzifvCeVcBV5QyrhKvKGVMKFZI9shGvJHtkI15I9shEuJ12yES4nXbIRLiddshQGkZoshTUhnE9qshQWZC2cQ2ryIqxJIZxAavIiFKQWviUFeRGeZE84gRTkRUA+EL4iBflOOE4KUgoYkH8IR0hNVkJjaISAdASkCR+TmjyExoBhJrvCcVKTh9AYGkMjldBIE46QLpmEJ0NjiMhKmMksfEy6ZBIWDDNZCTNpwhHSJZOwZliJnEW6ZBKGki6BMJp0CYQbSE0g3EBqAuEGUhMI95CC4TZSMNxGCoZ7SE0g3EBqAuEGUhMIo0mXQBhNumQShpIumYShpEsmYSjpkkkYSrrkIYwjXfIQhpLaHxANSjGdrBmtAAAAAElFTkSuQmCC','iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAIAAADYYG7QAAAAbUlEQVRYCc3BMRHAMADDMOn/o909QJYsFSkxEiMxEiMxEiMxEiMxEiMxEiMxEiMxEiMx8qtxcrQ4WhwtjhZHi6PF0eJocbQ4WhwtjhZHi6PF0eJocbQ4WhwtjhZHi6PF0eJocbQ4WhwtjhZHi+Od44Xj7gNvfSESOpEkyAAAAABJRU5ErkJggg==','iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAIAAADYYG7QAAAAc0lEQVRYCc3BsQ3AMADDMOn/o909QJYsFSkxEiMxEiMxEiMxEiMxEiMxEiMxEiMxEiMx8qtxcrQ4WhwtjhZHi6PF0eJocbQ4WhwtjhZHi6PF0eJocbQ4WhwtjhZHi6PF0eJocbQ4WhwtjhZHi+Od44Xj7gNvfSESOpEkyAAAAABJRU5ErkJggg=='];
+
+// FACES: 4 ZK (destruction) + 8 ANIM (animations) + 8 TF (procedural)
+const FACES=[];
+for(let i=0;i<4;i++)  FACES.push({ent:null,lbl:'ZK-'+(i+1),type:'zk'});
+for(let i=4;i<12;i++) FACES.push({ent:null,lbl:'ANIM-'+(i-3),type:'anim'});
+for(let i=12;i<20;i++) FACES.push({ent:mkFace(i+20),lbl:'TF-'+(i-11),type:'proc'});
+
+// ── Load rawB from an HTMLImageElement
+function entFromImg(img){
+  const c=document.createElement('canvas');c.width=img.width;c.height=img.height;
+  c.getContext('2d').drawImage(img,0,0);
+  const id2=c.getContext('2d').getImageData(0,0,img.width,img.height);
+  const rawB=new Float32Array(256);
+  for(let by=0;by<16;by++) for(let bx=0;bx<16;bx++){
+    let sm=0,ct=0;
+    const x0=Math.floor(bx*img.width/16),x1=Math.ceil((bx+1)*img.width/16),
+          y0=Math.floor(by*img.height/16),y1=Math.ceil((by+1)*img.height/16);
+    for(let py=y0;py<y1;py++) for(let px=x0;px<x1;px++){
+      const ii=(py*img.width+px)*4;
+      if(id2.data[ii+3]>10){sm+=(id2.data[ii]+id2.data[ii+1]+id2.data[ii+2])/3;ct++;}
+    }
+    if(ct)rawB[by*16+bx]=sm/ct;
+  }
+  return{rawB};
+}
+
+// ── Load a base64 face into FACES[i]
+function loadFaceB64(idx,b64,label){
+  const img=new Image();
+  img.onload=()=>{
+    FACES[idx].ent=entFromImg(img);
+    if(label)FACES[idx].lbl=label;
+    // Draw proper thumbnail scaled from actual image
+    const cv=document.getElementById('fc'+idx);
+    if(cv){const ctx=cv.getContext('2d');ctx.drawImage(img,0,0,16,16);}
+    // Update title
+    if(cv)cv.title=FACES[idx].lbl;
+  };
+  img.src='data:image/png;base64,'+b64;
+}
+
+// ── Load ZK base4 faces (indices 0-3)
+ZKB.forEach((b64,i)=>loadFaceB64(i,b64));
+
+// ── Fetch and parse 8 animation faces from the ZK site
+async function loadAnimFaces(){
+  const stat=document.getElementById('anim-stat');
+  if(stat)stat.textContent='fetching animation faces…';
+  try{
+    const resp=await fetch('https://zk-faces-xenomoderns-projects.vercel.app/animations.html');
+    if(!resp.ok)throw new Error('HTTP '+resp.status);
+    const html=await resp.text();
+    // Extract only PNG data URLs (not GIFs) — first 8 are the input face images
+    const pngs=[...html.matchAll(/data:image\/png;base64,([A-Za-z0-9+/=]+)/g)].slice(0,8);
+    if(pngs.length===0)throw new Error('no PNGs found in page');
+    pngs.forEach((m,i)=>{
+      loadFaceB64(4+i, m[1], 'ANIM-'+(i+1));
+    });
+    if(stat)stat.textContent=`${pngs.length} ANIM faces loaded from xenomoderns`;
+  }catch(e){
+    console.warn('Animation face load failed:',e.message);
+    // Fill ANIM slots with unique procedural variants so strip isn't empty
+    for(let i=4;i<12;i++){
+      if(!FACES[i].ent){FACES[i].ent=mkFace(i*11+7);setTimeout(()=>refreshThumb(i),50);}
+    }
+    if(stat)stat.textContent='ANIM offline — using proc variants';
+  }
+}
+
+// Proc face thumbnails (drawn immediately)
+function drawProcThumbs(){
+  for(let i=12;i<20;i++){
+    const cv=document.getElementById('fc'+i);if(!cv||!FACES[i].ent)continue;
+    const ctx=cv.getContext('2d');const im=ctx.createImageData(16,16);
+    for(let j=0;j<256;j++){const v=FACES[i].ent.rawB[j]|0;im.data[j*4]=im.data[j*4+1]=im.data[j*4+2]=v;im.data[j*4+3]=255;}
+    ctx.putImageData(im,0,0);
+  }
+}
+
+// ── USER-LOADED FACE (slot 20)
+FACES.push({ent:null,lbl:'USER',type:'user'});
+
+function loadImageAsFace(img){
+  // Use slot 20 (USER) — auto-selects it after load
+  const idx=20;
+  FACES[idx].ent=entFromImg(img);
+  FACES[idx].lbl='USER';
+  // Draw or create thumbnail
+  let cv=document.getElementById('fc'+idx);
+  if(!cv){
+    // Build a new thumbnail dynamically and append to strip
+    cv=document.createElement('canvas');cv.id='fc'+idx;cv.width=16;cv.height=16;
+    cv.style.cssText='width:26px;height:26px;';cv.className='fc';cv.dataset.fidx=idx;cv.title='USER';
+    // Find TF group span and append after TF block, or just append to strip
+    document.getElementById('fstrip').appendChild(cv);
+  }
+  cv.getContext('2d').drawImage(img,0,0,16,16);
+  // Auto-select
+  selFace(idx);
+  document.getElementById('anim-stat').textContent='USER face loaded — '+img.width+'×'+img.height;
+}
+
+function handleFaceDrop(e){
+  e.preventDefault();
+  document.getElementById('drop-zone').classList.remove('drag-over');
+  const f=e.dataTransfer?.files?.[0];
+  if(f&&f.type.startsWith('image/'))loadImageFile(f);
+}
+function handleFaceFile(f){if(f)loadImageFile(f);}
+function loadImageFile(f){
+  const url=URL.createObjectURL(f);
+  const img=new Image();
+  img.onload=()=>{loadImageAsFace(img);URL.revokeObjectURL(url);};
+  img.src=url;
+}
+
+// ── LAYER DEFAULTS
+const LD=[
+  {bs:32,algo:'density',glitch:'tear',  nm:'evolutive',bm:'add',fc:false,ga:38,nf:5,ns:10,dp:8, en:true,seed:0},
+  {bs:8, algo:'reaction',glitch:'none', nm:'evolutive',bm:'scr',fc:false,ga:42,nf:10,ns:20,dp:3,en:true,seed:137},
+  {bs:4, algo:'glitch',  glitch:'shift',nm:'evolutive',bm:'xor',fc:true, ga:45,nf:16,ns:30,dp:2,en:true,seed:274},
+];
+const layers=LD.map((d,i)=>({...d,buf:new Uint8Array(W*H),tmp:new Uint8Array(W*H),dx:0,dy:0}));
+const cmp=new Uint8Array(W*H),fbuf=new Uint8Array(W*H);
+
+// ── ALGO TICKER (RD/Physarum/Lenia step every N frames)
+let rdTick=0;
+function tickAlgos(){
+  rdTick++;
+  for(let li=0;li<3;li++){
+    const L=layers[li];
+    if(L.algo==='reaction'){if(!RD_STATE[li].init)initRD(RD_STATE[li],li*99);if(rdTick%2===0)stepRD(RD_STATE[li]);}
+    if(L.algo==='physarum'){if(rdTick%1===0)stepPhysarum(PHY[li]);}
+    if(L.algo==='lenia'){if(rdTick%3===0)stepLenia(LENIA[li]);}
+  }
+}
+
+// ── NOISE SAMPLING
+function sampleNoise(bx,by,li,t){
+  const L=layers[li];const{nf,ns,seed,nm,algo,bs,fc}=L;const nB=W/bs;
+  // Face driver
+  if(fc&&selF>=0&&FACES[selF]?.ent?.rawB){const fx=Math.min(15,(bx*bs+(bs>>1))>>4),fy=Math.min(15,(by*bs+(bs>>1))>>4);return FACES[selF].ent.rawB[fy*16+fx]/255;}
+  // Self
+  if(fc&&SELF_ON&&selF===-1){let s=0,c=0;const x0=bx*bs,y0=by*bs;for(let dy=0;dy<bs;dy+=2)for(let dx=0;dx<bs;dx+=2){s+=selfAccum[(y0+dy)*W+(x0+dx)];c++;}return c?Math.min(1,s/c/255):0;}
+  // Algorithm-specific
+  if(algo==='reaction') return sampleRD(RD_STATE[li],bx,by,nB);
+  if(algo==='physarum') return samplePhysarum(PHY[li],bx,by,nB);
+  if(algo==='lenia')    return sampleLenia(LENIA[li],bx,by,nB);
+  if(algo==='voronoi')  return sampleVoronoi(VOR_SEEDS[li],bx,by,nB,t);
+  if(algo==='wavefold') return sampleWavefold(bx,by,nB,nf,ns,seed,t);
+  // Perlin-based (density / scanline / diagonal / glitch / bayer)
+  const f=nf*.01;
+  if(nm==='evolutive'){
+    const rad=ns*.04,angle=t*.8+seed*.003;
+    const cx=bx*f+Math.cos(angle)*rad,cy=by*f+Math.sin(angle)*rad;
+    const wx=pn(cx*.7+seed*.01,cy*.7,seed+50)*.3,wy=pn(cx*.7,cy*.7+seed*.01,seed+150)*.3;
+    return pn(cx+wx,cy+wy,seed);
+  }
+  return pn(bx*f+t*ns*.05,by*f,seed);
+}
+
+// ── RENDER LAYER
+function rlayer(L,li,t){
+  const{buf,tmp,bs:S,algo,glitch,ga,seed,nf,ns}=L;
+  const nB=W/S,gA=ga/100;
+  const isBayer=algo==='bayer';
+  const pats=PSETS[algo]||PSETS['density'];
+
+  for(let by=0;by<nB;by++) for(let bx=0;bx<nB;bx++){
+    const noise=sampleNoise(bx,by,li,t);
+    const inv=glitch==='invert'&&pn(bx*.45+t*1.9,by*.45,seed+300)>.72-gA*.5;
+    for(let dy=0;dy<S;dy++){
+      const py=by*S+dy,row=dy&7;
+      for(let dx=0;dx<S;dx++){
+        const px=bx*S+dx,col=dx&7;
+        let bit=isBayer?(noise*64>B8[row*8+col]?1:0):(pats[Math.min(7,noise*8|0)][row]>>(7-col))&1;
+        tmp[py*W+px]=(bit^(inv?1:0))*255;
+      }
+    }
+  }
+  // Glitch displace
+  if(glitch==='tear'){
+    const tm=new Int16Array(nB);for(let b=0;b<nB;b++){const n=pn(b*.35+t*2.5,seed+100);tm[b]=n>.62?Math.round((n-.62)/.38*gA*36)|0:0;}
+    for(let y=0;y<H;y++){const tx=tm[y/S|0],rw=y*W;for(let x=0;x<W;x++)buf[rw+x]=tmp[rw+((x+tx)&255)];}
+  } else if(glitch==='stripe'){
+    const sm=new Int16Array(nB);for(let b=0;b<nB;b++){const n=pn(b*.4+t*1.8,seed+200);sm[b]=n>.58?Math.round((n-.58)/.42*gA*30)|0:0;}
+    for(let y=0;y<H;y++) for(let x=0;x<W;x++)buf[y*W+x]=tmp[((y+sm[x/S|0])&255)*W+x];
+  } else if(glitch==='shift'){
+    for(let y=0;y<H;y++){const rw=y*W;for(let x=0;x<W;x++){const sh=Math.round((pn(x*.18+t*4.5,y*.18,seed+400)-.5)*gA*6);buf[rw+x]=tmp[rw+((x+sh)&255)];}}
+  } else buf.set(tmp);
+}
+
+// ── COMPOSITE
+function composite(){
+  cmp.fill(0);
+  for(let i=0;i<3;i++){
+    const L=layers[i];if(!L.en)continue;
+    const ph=L.seed*.0137;L.dx=Math.round(Math.sin(simT*L.ns*.007+ph)*L.dp);L.dy=Math.round(Math.cos(simT*L.ns*.005+ph*1.4)*L.dp);
+    const m=L.bm,lb=L.buf;
+    for(let y=0;y<H;y++) for(let x=0;x<W;x++){const ci=y*W+x;cmp[ci]=bl(cmp[ci],lb[(((y+L.dy)&255)*W)+((x+L.dx)&255)],m);}
+  }
+  // Self-synthesis
+  if(SELF_ON)for(let i=0;i<W*H;i++)cmp[i]=Math.min(255,(cmp[i]*(1-SELF_MIX)+bl(cmp[i],selfAccum[i]|0,SELF_BM)*SELF_MIX)|0);
+  // Face on top
+  if(selF>=0&&FACES[selF]?.ent?.rawB){const rawB=FACES[selF].ent.rawB;for(let py=0;py<H;py++) for(let px=0;px<W;px++)fbuf[py*W+px]=rawB[(py>>4)*16+(px>>4)]|0;for(let i=0;i<W*H;i++)cmp[i]=bl(cmp[i],fbuf[i],FBM);}
+}
+
+// ── MASTER POST
+function applyPost(v){
+  v+=M_BRI;
+  if(M_CON!==0){const f=(259*(M_CON+128))/(128*(259-M_CON));v=f*(v-128)+128;}
+  if(M_GAM!==1)v=Math.pow(Math.max(0,v)/255,1/M_GAM)*255;
+  if(M_INV>0)v=v*(1-M_INV/100)+(255-v)*(M_INV/100);
+  return Math.max(0,Math.min(255,v|0));
+}
+
+// ── DRAW
+const mainCv=document.getElementById('cv'),mainCtx=mainCv.getContext('2d');
+const offscr=new OffscreenCanvas(W,H),offCtx=offscr.getContext('2d'),offD=offCtx.createImageData(W,H);
+function writeFrame(ctx){
+  const p=PAL[GP];const[br,bg2,bb]=p.b,[ar,ag,ab]=p.a;const d=offD.data;
+  for(let i=0;i<W*H;i++){const v=applyPost(cmp[i])/255;const ii=i*4;d[ii]=(br+(ar-br)*v)|0;d[ii+1]=(bg2+(ag-bg2)*v)|0;d[ii+2]=(bb+(ab-bb)*v)|0;d[ii+3]=255;}
+  offCtx.putImageData(offD,0,0);ctx.drawImage(offscr,0,0);
+}
+function drawAll(){
+  const wrap=document.getElementById('cv-wrap');const cvs=wrap.querySelectorAll('canvas');
+  if(GRID&&cvs.length===4){
+    writeFrame(cvs[0].getContext('2d'));
+    [1.5,4,9].forEach((off,idx)=>{const saved=simT;simT+=off;for(let i=0;i<3;i++)if(layers[i].en)rlayer(layers[i],i,simT);composite();writeFrame(cvs[idx+1].getContext('2d'));simT=saved;});
+    for(let i=0;i<3;i++)if(layers[i].en)rlayer(layers[i],i,simT);composite();
+  } else if(cvs.length) writeFrame(cvs[0].getContext('2d'));
+  if(SELF_ON)for(let i=0;i<W*H;i++)selfAccum[i]=selfAccum[i]*SELF_DEC+cmp[i]*(1-SELF_DEC);
+}
+
+// ── LOOP
+let simT=0,lastT=0,fN=0;
+function loop(now){
+  requestAnimationFrame(loop);const dt=Math.min((now-lastT)/1000,.05);lastT=now;simT+=dt*GS;
+  tickAlgos();
+  for(let i=fN%2;i<3;i+=2)if(layers[i].en)rlayer(layers[i],i,simT);
+  composite();drawAll();fN++;
+  if(fN%6===0)updatePrevs();
+}
+
+// ── PREVIEWS
+function updatePrevs(){
+  for(let li=0;li<3;li++){
+    const cv=document.getElementById('lpv'+li);if(!cv||!layers[li].en)continue;
+    const c=cv.getContext('2d'),im=c.createImageData(64,64),d=im.data,buf=layers[li].buf;
+    for(let py=0;py<64;py++) for(let px=0;px<64;px++){const v=buf[Math.floor(py*4)*W+Math.floor(px*4)];const i=(py*64+px)*4;d[i]=d[i+1]=d[i+2]=v;d[i+3]=255;}
+    c.putImageData(im,0,0);
+  }
+}
+
+// ── SIZE / GRID
+function setSz(n){GZ=n;rebuildCv();['s1','s3','s4'].forEach(id=>document.getElementById(id).classList.toggle('on',id==='s'+n));}
+function toggleGrid(){GRID=!GRID;document.getElementById('sg').classList.toggle('on',GRID);rebuildCv();}
+function rebuildCv(){
+  const sz=256*GZ,wrap=document.getElementById('cv-wrap');
+  if(GRID){wrap.classList.add('g4');wrap.innerHTML='';for(let i=0;i<4;i++){const c=document.createElement('canvas');c.className='sub';c.width=256;c.height=256;c.style.width=sz+'px';c.style.height=sz+'px';wrap.appendChild(c);}wrap.style.width=(sz*2+2)+'px';}
+  else{wrap.classList.remove('g4');wrap.innerHTML=`<canvas id="cv" width="256" height="256" style="width:${sz}px;height:${sz}px;"></canvas>`;wrap.style.width='';}
+}
+
+// ── FACE SELECT
+function selFace(idx){selF=idx;document.querySelectorAll('.fc').forEach((f)=>f.classList.toggle('on',+f.dataset.fidx===idx));document.getElementById('fnone').classList.toggle('on',idx<0);document.getElementById('fstat').textContent=idx<0?'NO FACE':(FACES[idx]?.lbl||'?');}
+
+// ── SELF TOGGLE
+function toggleSelf(){SELF_ON=!SELF_ON;const b=document.getElementById('self-btn');b.classList.toggle('on',SELF_ON);b.textContent=SELF_ON?'SELF ON':'SELF OFF';document.getElementById('self-stat').textContent=SELF_ON?'ACTIVE — previous frame drives pattern index':'disabled';if(!SELF_ON)selfAccum.fill(0);}
+
+// ── BUILD UI
+function buildFaceStrip(){
+  const strip=document.getElementById('fstrip');strip.innerHTML='';
+  const groups=[
+    {start:0,end:4,label:'ZK'},
+    {start:4,end:12,label:'ANIM'},
+    {start:12,end:20,label:'TF'},
+  ];
+  for(const g of groups){
+    const row=document.createElement('div');
+    row.style.cssText='display:flex;align-items:center;gap:3px;margin:0 0 3px;';
+    const lbl=document.createElement('span');
+    lbl.style.cssText='font-size:8px;color:#2a2a2a;letter-spacing:1px;width:26px;flex-shrink:0;text-align:right;padding-right:3px;';
+    lbl.textContent=g.label;row.appendChild(lbl);
+    for(let i=g.start;i<g.end;i++){
+      const cv=document.createElement('canvas');cv.id='fc'+i;cv.width=16;cv.height=16;
+      cv.style.cssText='width:26px;height:26px;';cv.className='fc';cv.dataset.fidx=i;
+      cv.title=FACES[i]?.lbl||'—';
+      if(FACES[i]?.ent?.rawB)refreshThumbData(cv,FACES[i].ent.rawB);
+      row.appendChild(cv);
+    }
+    strip.appendChild(row);
+  }
+  // USER row — shown when populated via drop
+  const userRow=document.createElement('div');userRow.id='user-row';
+  userRow.style.cssText='display:flex;align-items:center;gap:3px;margin:0 0 3px;';
+  const ul=document.createElement('span');
+  ul.style.cssText='font-size:8px;color:#2a2a2a;letter-spacing:1px;width:26px;flex-shrink:0;text-align:right;padding-right:3px;';
+  ul.textContent='↓';userRow.appendChild(ul);
+  const ucv=document.createElement('canvas');ucv.id='fc20';ucv.width=16;ucv.height=16;
+  ucv.style.cssText='width:26px;height:26px;';ucv.className='fc';ucv.dataset.fidx=20;ucv.title='USER';
+  if(FACES[20]?.ent?.rawB)refreshThumbData(ucv,FACES[20].ent.rawB);
+  userRow.appendChild(ucv);
+  strip.appendChild(userRow);
+}
+
+const ALGO_OPTS=[
+  {v:'density', l:'DENSITY — halftone ordered fill'},
+  {v:'scanline',l:'SCANLINE — horizontal raster bars'},
+  {v:'diagonal',l:'DIAGONAL — cross-hatch from corners'},
+  {v:'glitch',  l:'GLITCH — corrupt XOR data masks'},
+  {v:'bayer',   l:'BAYER — 8×8 ordered dither'},
+  {v:'reaction',l:'REACTION-DIFFUSION — Gray-Scott'},
+  {v:'wavefold',l:'WAVEFOLD — sinusoidal harmonic fold'},
+  {v:'voronoi', l:'VORONOI — animated distance field'},
+  {v:'physarum',l:'PHYSARUM — slime mould diffusion'},
+  {v:'lenia',   l:'LENIA — continuous cellular automaton'},
+];
+const GLITCH_OPTS=[{v:'none',l:'OFF'},{v:'tear',l:'TEAR — row shift'},{v:'stripe',l:'STRIPE — column drift'},{v:'invert',l:'INVERT — prob. inversion'},{v:'shift',l:'SHIFT — per-pixel jitter'}];
+const BLEND_OPTS=[{v:'add',l:'ADD'},{v:'drk',l:'DARKEN'},{v:'mul',l:'MULTIPLY'},{v:'max',l:'MAX'},{v:'xor',l:'XOR'},{v:'scr',l:'SCREEN'},{v:'dif',l:'DIFFERENCE'},{v:'inv',l:'INVERT-ADD'},{v:'ovl',l:'OVERLAY'},{v:'lgt',l:'LIGHTEN'},{v:'nrm',l:'NORMAL'}];
+const NM_OPTS=[{v:'directional',l:'DIRECTIONAL — scrolling noise'},{v:'evolutive',l:'EVOLUTIVE — circular orbit'},{v:'self',l:'SELF — previous frame input'}];
+const BS_OPTS=[4,8,16,32,64];
+
+function mkSel(opts,val,onch){return `<select onchange="${onch}">${opts.map(o=>`<option value="${o.v}"${o.v===val?' selected':''}>${o.l}</option>`).join('')}</select>`;}
+
+function buildLayerPanel(li,L){
+  const d=document.createElement('div');d.className='lp';
+  const algoSel=mkSel(ALGO_OPTS,L.algo,`layers[${li}].algo=this.value`);
+  const gliSel=mkSel(GLITCH_OPTS,L.glitch,`layers[${li}].glitch=this.value`);
+  const blSel=mkSel(BLEND_OPTS,L.bm,`layers[${li}].bm=this.value`);
+  const nmSel=mkSel(NM_OPTS,L.nm,`layers[${li}].nm=this.value`);
+  const bsSel=`<select onchange="layers[${li}].bs=+this.value">${BS_OPTS.map(s=>`<option value="${s}"${s===L.bs?' selected':''}>${s}px block</option>`).join('')}</select>`;
+  d.innerHTML=`
+<div class="lp-hdr">
+  <span class="lnum">L${li+1}</span>
+  <div style="flex:1;min-width:0;">
+    <div style="font-size:9px;color:#2a2a2a;letter-spacing:1px;margin-bottom:4px;">${L.algo.toUpperCase()} · ${L.bm.toUpperCase()} · ${L.bs}px</div>
+  </div>
+  <button class="btn${L.fc?' on':''}" data-l="${li}" data-a="fc">◈ SELF/FACE</button>
+  <button class="onoff${L.en?'':' off'}" data-l="${li}" data-a="en">${L.en?'ON':'OFF'}</button>
+</div>
+<div class="lp-body">
+  <div class="lp-left">
+    <canvas class="lp-cv" id="lpv${li}" width="64" height="64" style="width:64px;height:64px;"></canvas>
+    <div style="font-size:8px;color:#1a1a1a;letter-spacing:.5px;text-align:center;margin-top:3px;">LAYER ${li+1}</div>
+  </div>
+  <div class="lp-right">
+    <div class="row"><span class="lbl">ALGORITHM</span>${algoSel}</div>
+    <div class="row"><span class="lbl">GLITCH</span>${gliSel}</div>
+    <div class="row"><span class="lbl">BLEND MODE</span>${blSel}</div>
+    <div class="row"><span class="lbl">NOISE TYPE</span>${nmSel}</div>
+    <div class="row"><span class="lbl">BLOCK SIZE</span>${bsSel}</div>
+    <div class="sl-wrap" style="margin:0 0 5px;"><label>GRIT</label><input type="range" data-l="${li}" data-p="ga" min="0" max="100" value="${L.ga}"><b>${L.ga}</b></div>
+    <div style="display:flex;gap:6px;">
+      <div class="sl-wrap" style="flex:1;"><label>FREQ</label><input type="range" data-l="${li}" data-p="nf" min="1" max="20" value="${L.nf}"><b>${(L.nf*.01).toFixed(2)}</b></div>
+      <div class="sl-wrap" style="flex:1;"><label>SPD</label><input type="range" data-l="${li}" data-p="ns" min="1" max="40" value="${L.ns}"><b>${(L.ns*.05).toFixed(2)}</b></div>
+    </div>
+    <div class="sl-wrap" style="margin-top:5px;"><label>DISPLACE</label><input type="range" data-l="${li}" data-p="dp" min="0" max="20" value="${L.dp}"><b>${L.dp}px</b></div>
+  </div>
+</div>`;
+  document.getElementById('lpanels').appendChild(d);
+}
+
+function buildUI(){
+  buildFaceStrip();
+  for(let i=0;i<3;i++) buildLayerPanel(i,layers[i]);
+}
+
+// ── EVENTS
+document.addEventListener('click',e=>{
+  const t=e.target;
+  if(t.classList.contains('fc'))selFace(+t.dataset.fidx);
+  const li=t.dataset.l;if(li==null)return;const L=layers[+li];
+  if(t.dataset.a==='en'){L.en=!L.en;t.classList.toggle('off',!L.en);t.textContent=L.en?'ON':'OFF';}
+  if(t.dataset.a==='fc'){L.fc=!L.fc;t.classList.toggle('on',L.fc);}
+});
+document.addEventListener('input',e=>{
+  const t=e.target;if(t.type!=='range')return;
+  if(t.id==='gspd'){GS=+t.value/5;document.getElementById('gspd-v').textContent=GS.toFixed(1)+'×';return;}
+  if(t.id==='m-bri'){M_BRI=+t.value;document.getElementById('v-bri').textContent=t.value;return;}
+  if(t.id==='m-con'){M_CON=+t.value;document.getElementById('v-con').textContent=t.value;return;}
+  if(t.id==='m-gam'){M_GAM=+t.value/100;document.getElementById('v-gam').textContent=M_GAM.toFixed(2);return;}
+  if(t.id==='m-inv'){M_INV=+t.value;document.getElementById('v-inv').textContent=t.value+'%';return;}
+  if(t.id==='self-mix'){SELF_MIX=+t.value/100;document.getElementById('v-smix').textContent=t.value+'%';return;}
+  if(t.id==='self-dec'){SELF_DEC=+t.value/100;document.getElementById('v-sdec').textContent=t.value+'%';return;}
+  const li=t.dataset.l;if(li==null)return;const L=layers[+li],v=+t.value,p=t.dataset.p;
+  if(p==='ga')L.ga=v;else if(p==='nf')L.nf=v;else if(p==='ns')L.ns=v;else if(p==='dp')L.dp=v;
+  const b=t.nextElementSibling;if(b){const fm={ga:v=>v,nf:v=>(v*.01).toFixed(2),ns:v=>(v*.05).toFixed(2),dp:v=>v+'px'};if(fm[p])b.textContent=fm[p](v);}
+});
+
+// ── EXPORT
+function getPreset(){return{version:'zk-synth-v2',global:{palette:GP,speed:GS,faceIdx:selF,faceBlend:FBM,brightness:M_BRI,contrast:M_CON,gamma:M_GAM,invert:M_INV},selfSynth:{on:SELF_ON,mix:SELF_MIX,decay:SELF_DEC,blend:SELF_BM},layers:layers.map((L,i)=>({index:i+1,enabled:L.en,algorithm:L.algo,glitch:L.glitch,blendMode:L.bm,noiseMode:L.nm,blockSize:L.bs,grit:L.ga,noiseFreq:(L.nf*.01).toFixed(2),noiseSpeed:(L.ns*.05).toFixed(2),displacement:L.dp,faceDriver:L.fc}))};}
+function openExport(){document.getElementById('exp-json').value=JSON.stringify(getPreset(),null,2);document.getElementById('modal').style.display='block';}
+function copyExp(){navigator.clipboard?.writeText(document.getElementById('exp-json').value).then(()=>{document.getElementById('exp-msg').textContent='COPIED';setTimeout(()=>document.getElementById('exp-msg').textContent='',2000);});}
+function dlExp(){const c=document.getElementById('exp-guide').textContent+'\n\nPRESET:\n\n'+JSON.stringify(getPreset(),null,2);const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([c],{type:'text/plain'}));a.download='zk_preset.txt';a.click();}
+document.getElementById('modal').addEventListener('click',e=>{if(e.target===document.getElementById('modal'))document.getElementById('modal').style.display='none';});
+
+buildUI();
+drawProcThumbs();
+loadAnimFaces();
+requestAnimationFrame(t=>{lastT=t;requestAnimationFrame(loop);});
+</script>
+</body>
+</html>
